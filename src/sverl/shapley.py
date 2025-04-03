@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from NeuralConditioner import predict_missing_features
 from math import factorial
-from utils import get_all_subsets
+from utils import get_all_group_subsets
 
 import cma
 
@@ -72,19 +72,13 @@ def global_sverl_value_function(policy, seed, NC, mask, env):
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
     
-    pred = predict_missing_features(NC, true_state, mask)
-
-  
+    pred = predict_missing_features(NC, true_state, mask)  
     believed_state = np.copy(true_state)
-  
-
     for i in range(state_space_dimension):
-        if mask[i] == 0:
-            
+        if mask[i] == 0:            
             believed_state[i] = pred[i]
 
-    while True:       
-
+    while True:     
         a = policy(believed_state)
         
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
@@ -94,7 +88,6 @@ def global_sverl_value_function(policy, seed, NC, mask, env):
         for i in range(state_space_dimension):
             if mask[i] == 0:
                 believed_state[i] = pred[i]
-
         if(terminated or truncated): 
             break
         
@@ -124,13 +117,13 @@ def marginal_gain(policy, neural_conditioner,eval_function , features, C, seed, 
 
 
 #Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
-def shapley_value(policy, neural_conditioner, eval_function,  features, seed, env):
+def shapley_value(policy, neural_conditioner, eval_function,  G, masked_group, seed, env):
     state_space = env.observation_space.shape[0]
-    list_of_C = get_all_subsets(features, state_space)
+
+    list_of_C = get_all_group_subsets(G, masked_group)
     sum = 0
 
     state_space = env.observation_space.shape[0]
-
     for C in list_of_C:
-        sum += marginal_gain(policy, neural_conditioner, eval_function, features, C, seed, env)* ((factorial(np.sum(C))*factorial(state_space - np.sum(C) - 1)) / factorial(state_space))
+        sum += marginal_gain(policy, neural_conditioner, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(C))*factorial(state_space - np.sum(C) - 1)) / factorial(state_space))
     return sum

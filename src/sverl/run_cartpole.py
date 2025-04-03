@@ -27,7 +27,7 @@ print("Standard deviation when running ", no_evaluation_episodes, " episodes:: "
 
 #EVERYTHING BELOW SHOULD HOPEFULLY BE GENERAL AT LEAST FOR ALL GYMNASIUM ENVS
 print("Generating trajectories...")
-trajectories = utils.get_trajectory(policy, env, time_horizon = 10**3) #Running the agent for 20 times, and storing the results
+trajectories = utils.get_trajectory(policy, env, time_horizon = 10**4) #Running the agent for 20 times, and storing the results
 #Also storing the trajectories, which is used to train the Neural Conditioner
 
 
@@ -41,7 +41,7 @@ latent_dim = 64  # Size of the latent space
 nc = NeuralConditioner.NC(input_dim, latent_dim)
 discriminator = NeuralConditioner.Discriminator(input_dim)
 print("Training Neural Conditioner...")
-NeuralConditioner.train_nc(nc, discriminator, dataloader, epochs=5)
+NeuralConditioner.train_nc(nc, discriminator, dataloader, epochs=10)
 
 #The i is the seed. This is the only way I know how to set the starting position 
 #We are doing 100 different seeds, and averaging the results.
@@ -50,12 +50,13 @@ shapley_cart_pos = 0
 shapley_cart_vel = 0
 shapley_pole_angle = 0
 shapley_pole_vel = 0
+G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
 print("Calculating Shapley values...")
 for i in trange(NUM_ROUNDS): 
-    shapley_cart_pos += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, [0], i, env)
-    shapley_cart_vel += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, [1], i, env)
-    shapley_pole_angle += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, [2], i, env)
-    shapley_pole_vel += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, [3], i, env)
+    shapley_cart_pos += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_cart_vel += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 1, i, env)
+    shapley_pole_angle += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 2, i, env)
+    shapley_pole_vel += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 3, i, env)
 shapley_cart_pos /= NUM_ROUNDS
 shapley_cart_vel /= NUM_ROUNDS
 shapley_pole_angle /= NUM_ROUNDS

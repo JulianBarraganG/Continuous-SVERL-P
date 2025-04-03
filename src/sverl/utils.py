@@ -70,14 +70,14 @@ def get_all_group_subsets(G, masked_group):
     """
 
     # First index = group & second index = feature index
-    n = len(np.ravel(G)) # number of features
+    n = sum(len(sublist) for sublist in G) # number of features
     k = len(G) # number of groups
     num_perms = 2**(k-1) # number of permutations / len(r)
 
 
     r = get_r(k, masked_group)
 
-    permutations = np.ones((num_perms, n))
+    permutations = np.ones((num_perms, n), dtype=np.int64)  # Initialize the permutations array
     for l, rnoget in enumerate(r):
         p_i = np.ones(n)
         for i in range(k):
@@ -120,6 +120,4 @@ def evaluate_policy(no_episodes, env, policy):
         env.close()
         rewards.append(R)
     return np.array(rewards)  # Return the cumulated reward
-start = time.time() 
-print(get_all_group_subsets(np.array([[0,2],[1,3], [4,5]]), 1))
-print(time.time()-start)
+
