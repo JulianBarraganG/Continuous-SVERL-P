@@ -65,3 +65,21 @@ print("Shapley value of Cart Position: ", shapley_cart_pos)
 print("Shapley value of Cart Velocity: ", shapley_cart_vel)
 print("Shapley value of Pole Angle: ", shapley_pole_angle)
 print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
+
+
+
+NUM_ROUNDS = 10
+shapley_cart = 0
+shapley_pole = 0
+
+G= [[0,1], [2,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+print("Calculating Shapley values...")
+for i in trange(NUM_ROUNDS): 
+    shapley_cart += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_pole += shapley.shapley_value(policy, nc, shapley.global_sverl_value_function, G, 1, i, env)
+shapley_cart /= NUM_ROUNDS
+shapley_pole /= NUM_ROUNDS
+
+print("Shapley value of Cart: ", shapley_cart)
+print("Shapley value of pole: ", shapley_pole)
+

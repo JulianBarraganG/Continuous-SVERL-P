@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from NeuralConditioner import predict_missing_features
 from math import factorial
-from utils import get_all_group_subsets
+from utils import get_all_group_subsets, get_r
 
 import cma
 
@@ -123,7 +123,12 @@ def shapley_value(policy, neural_conditioner, eval_function,  G, masked_group, s
     list_of_C = get_all_group_subsets(G, masked_group)
     sum = 0
 
+    num_groups = len(G) #Number of groups #Number of subsets
+    num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C
+
+
+
     state_space = env.observation_space.shape[0]
-    for C in list_of_C:
-        sum += marginal_gain(policy, neural_conditioner, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(C))*factorial(state_space - np.sum(C) - 1)) / factorial(state_space))
+    for i, C in enumerate(list_of_C):
+        sum += marginal_gain(policy, neural_conditioner, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(num_groups_per_C[i])))*factorial(num_groups - np.sum(num_groups_per_C[i]) - 1)) / factorial(num_groups)
     return sum
