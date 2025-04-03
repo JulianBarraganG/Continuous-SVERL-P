@@ -13,7 +13,7 @@ action_space_dimension = 4
 state_space_dimension = 8
 
 print("Training agent...")
-policy = lunar_agent.train(env, train_episodes=400) #Here we train the agent and get a policy
+policy = lunar_agent.train(env, train_episodes=2) #Here we train the agent and get a policy
 
 #Want to report how good the policy is
 print("Evaluating policy...")
@@ -24,7 +24,7 @@ print("Standard deviation when running ", no_evaluation_episodes, " episodes:: "
 
 #EVERYTHING BELOW SHOULD HOPEFULLY BE GENERAL AT LEAST FOR ALL GYMNASIUM ENVS
 print("Generating trajectories...")
-trajectories = utils.get_trajectory(policy.predict, env, time_horizon = 10**4) #Running the agent for a time-horizon of 10**4, and storing the trajectories, 
+trajectories = utils.get_trajectory(policy.predict, env, time_horizon = 10**3) #Running the agent for a time-horizon of 10**4, and storing the trajectories, 
 #which is used to train the neural conditioner
 
 
@@ -49,9 +49,11 @@ shapley_vel = 0
 shapley_angle = 0
 shapley_angle_vel = 0
 shapley_leg_bools = 0
+value_empty_set = 0
 G = [[0, 1], [2, 3], [4], [5], [6, 7]] #The groups of features. In this case, we have 8 features, and each feature is its own group.
 print("Calculating Shapley values...")
 for i in trange(NUM_ROUNDS): 
+    value_empty_set += shapley.global_sverl_value_function(policy.predict, i, nc, np.zeros(8), env)
     shapley_pos += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 0, i, env)
     shapley_vel += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 1, i, env)
     shapley_angle += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 2, i, env)
@@ -62,8 +64,11 @@ shapley_vel /= NUM_ROUNDS
 shapley_angle /= NUM_ROUNDS
 shapley_angle_vel /= NUM_ROUNDS
 shapley_leg_bools /= NUM_ROUNDS
+value_empty_set /= NUM_ROUNDS
+print("Value of empty set: ", value_empty_set)
 print("Shapley value of he coordinates of the lander: ", shapley_pos)
 print("Shapley value of linear velocities: ", shapley_vel)
 print("Shapley value of Angle: ", shapley_angle)
 print("Shapley value of Angular Velocity: ", shapley_angle_vel)
-print("Shapley value of leg booleans: ", shapley_leg_bools)          
+print("Shapley value of leg booleans: ", shapley_leg_bools)   
+
