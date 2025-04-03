@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm, trange
+import time
 
 import numpy as np
 
@@ -54,6 +55,37 @@ def get_all_subsets(fixed_features, list_length):
     
     return variations
 
+def get_r(k, masked_group):
+    """Gets the permutations of the groups, where masked group is fixed to 0."""
+    return get_all_subsets([masked_group], k)
+
+def get_all_group_subsets(G, masked_group):
+    """
+    Gets all permutations of subsets, with masked group fixed to 0.
+    Args:
+        G: The groups
+        masked_group: The group that is fixed to 0
+    Returns:
+        permutations: The permutations of the groups
+    """
+
+    # First index = group & second index = feature index
+    n = len(np.ravel(G)) # number of features
+    k = len(G) # number of groups
+    num_perms = 2**(k-1) # number of permutations / len(r)
+
+
+    r = get_r(k, masked_group)
+
+    permutations = np.ones((num_perms, n))
+    for l, rnoget in enumerate(r):
+        p_i = np.ones(n)
+        for i in range(k):
+            # Loop over every j feature index in the i-th group.
+            for j in G[i]: 
+                p_i[j] = rnoget[i]
+        permutations[l] = p_i
+    return permutations
 
 def get_trajectory(policy, env, time_horizon = 10**3): 
     trajectory_features = []  # Store the features of the trajectory
@@ -88,4 +120,6 @@ def evaluate_policy(no_episodes, env, policy):
         env.close()
         rewards.append(R)
     return np.array(rewards)  # Return the cumulated reward
-        
+start = time.time() 
+print(get_all_group_subsets(np.array([[0,2],[1,3], [4,5]]), 1))
+print(time.time()-start)
