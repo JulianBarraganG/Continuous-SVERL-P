@@ -12,21 +12,19 @@ env = gym.make('LunarLander-v3', render_mode="rgb_array")
 action_space_dimension = 4
 state_space_dimension = 8
 
-policy = lunar_agent.Softmax_policy(action_space_dimension, state_space_dimension)
-
 print("Training agent...")
-policy = lunar_agent.train(policy, env, no_episodes = 20000) #Here we train the agent and get a policy
+policy = lunar_agent.train(env, train_episodes=400) #Here we train the agent and get a policy
 
 #Want to report how good the policy is
 print("Evaluating policy...")
 no_evaluation_episodes = 100
-reward = utils.evaluate_policy(no_evaluation_episodes, env,  policy.sample_action) #Evaluating the policy
+reward = utils.evaluate_policy(no_evaluation_episodes, env,  policy.predict) #Evaluating the policy
 print("Average reward when running ", no_evaluation_episodes, " episodes: ", np.mean(reward)) #Printing the average reward
 print("Standard deviation when running ", no_evaluation_episodes, " episodes:: ", np.std(reward)) #Printing the standard deviation of the reward
 
 #EVERYTHING BELOW SHOULD HOPEFULLY BE GENERAL AT LEAST FOR ALL GYMNASIUM ENVS
 print("Generating trajectories...")
-trajectories = utils.get_trajectory(policy.sample_action, env, time_horizon = 10**4) #Running the agent for a time-horizon of 10**4, and storing the trajectories, 
+trajectories = utils.get_trajectory(policy.predict, env, time_horizon = 10**4) #Running the agent for a time-horizon of 10**4, and storing the trajectories, 
 #which is used to train the neural conditioner
 
 
@@ -54,11 +52,11 @@ shapley_leg_bools = 0
 G = [[0, 1], [2, 3], [4], [5], [6, 7]] #The groups of features. In this case, we have 8 features, and each feature is its own group.
 print("Calculating Shapley values...")
 for i in trange(NUM_ROUNDS): 
-    shapley_pos += shapley.shapley_value(policy.sample_action, nc, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_vel += shapley.shapley_value(policy.sample_action, nc, shapley.global_sverl_value_function, G, 1, i, env)
-    shapley_angle += shapley.shapley_value(policy.sample_action, nc, shapley.global_sverl_value_function, G, 2, i, env)
-    shapley_angle_vel += shapley.shapley_value(policy.sample_action, nc, shapley.global_sverl_value_function, G, 3, i, env)
-    shapley_leg_bools += shapley.shapley_value(policy.sample_action, nc, shapley.global_sverl_value_function, G, 4, i, env)
+    shapley_pos += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_vel += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 1, i, env)
+    shapley_angle += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 2, i, env)
+    shapley_angle_vel += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 3, i, env)
+    shapley_leg_bools += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 4, i, env)
 shapley_pos /= NUM_ROUNDS
 shapley_vel /= NUM_ROUNDS
 shapley_angle /= NUM_ROUNDS
