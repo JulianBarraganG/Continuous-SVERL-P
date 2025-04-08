@@ -124,7 +124,7 @@ def shapley_value(policy, neural_conditioner, eval_function,  G, masked_group, s
     sum = 0
 
     num_groups = len(G) #Number of groups #Number of subsets
-    num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C
+    num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C (|T|_g in the paper)
 
 
 
