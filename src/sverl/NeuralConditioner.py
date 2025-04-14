@@ -37,6 +37,27 @@ class NC(nn.Module):
         decoder_input = torch.cat([h, x_a, a, r], dim=1)
         return self.decoder(decoder_input) * r
 
+    def pred(self, observed_features, mask): 
+        # Convert to PyTorch tensors
+        observed_features *= mask
+        x_a = torch.FloatTensor(np.nan_to_num(observed_features, nan=0.0) * mask)
+        a = torch.FloatTensor(mask)
+        r = 1 - a  # Predict missing features
+        
+        # Generate predictions (multiple samples for uncertainty)
+        with torch.no_grad():
+            z = torch.randn(self.latent_dim)
+            x_a = x_a.unsqueeze(0)
+            a = a.unsqueeze(0)
+            r = r.unsqueeze(0)
+            pred = self(x_a, a, r, z).mean(0).numpy()
+
+        for i in range(len(pred)):
+            if mask[i] == 1: 
+                pred[i] = observed_features[i]
+        return pred
+
+
 class Discriminator(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -102,25 +123,3 @@ def train_nc(nc, discriminator, dataloader, epochs):
         
         print(f"Epoch {epoch+1}/{epochs} | G Loss: {loss_g.item():.4f} | D Loss: {loss_d.item():.4f}")
 
-#Function to predict missing features using the trained Neural Conditioner
-#Takes the neural conditioner, all features (where missing features can be np.nan, but can also have their true values which will just be ignored), 
-#and a mask that indicates which features are missing (1 = observed, 0 = missing)
-def predict_missing_features(nc, observed_features, observed_mask):
-    """
-    observed_features: Array of shape (4,), with NaN for missing features.
-    observed_mask: Binary array (1 = observed, 0 = missing).
-    """
-    # Convert to PyTorch tensors
-    x_a = torch.FloatTensor(np.nan_to_num(observed_features, nan=0.0) * observed_mask)
-    a = torch.FloatTensor(observed_mask)
-    r = 1 - a  # Predict missing features
-    
-    # Generate predictions (multiple samples for uncertainty)
-    with torch.no_grad():
-        z = torch.randn(nc.latent_dim)
-        x_a = x_a.unsqueeze(0)
-        a = a.unsqueeze(0)
-        r = r.unsqueeze(0)
-        preds = nc(x_a, a, r, z)
-    
-    return preds.mean(0).numpy() 

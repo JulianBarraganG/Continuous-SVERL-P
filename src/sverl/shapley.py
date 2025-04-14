@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from NeuralConditioner import predict_missing_features
 from math import factorial
 from utils import get_all_group_subsets, get_r
 
@@ -15,7 +14,8 @@ import numpy as np
 #Will usually still be the same, just with more or less certainty. And even if the missing features leads to a bad decision 
 #In the initital step, it can be saved, so it doesn't really matter much. 
 #I haven't used this function much
-def local_sverl_value_function(policy, seed, NC, mask, env):
+#ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
+def local_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
     ''''
     'Evaluate the policy from a given state, using the believed state to make the initial decision'
     '''
@@ -23,17 +23,7 @@ def local_sverl_value_function(policy, seed, NC, mask, env):
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     state_space_dimension = env.observation_space.shape[0]
 
-    pred = predict_missing_features(NC, true_state, mask)
-
-
-    believed_initial_state = np.copy(true_state)
-
-    for i in range(state_space_dimension):
-        if mask[i] == 0:
-            believed_initial_state[i] = pred[i]
-    
-    
-
+    believed_initial_state = ms_ft_pred_fnc(true_state, mask)
 
     print("Believed state: ", believed_initial_state)
     print("True state: ", true_state)
@@ -63,8 +53,8 @@ def local_sverl_value_function(policy, seed, NC, mask, env):
 
 #Now this is juicy. Gives a global evaluation of the policy, but with missing features.
 #In every step, it uses the neural conditioner to predict the missing features, and then uses the policy to decide what to do.
-
-def global_sverl_value_function(policy, seed, NC, mask, env):
+#ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
+def global_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
     ''''
     'Evaluate the policy from a given state, using the believed state to make the initial decisino'
     '''
@@ -72,22 +62,15 @@ def global_sverl_value_function(policy, seed, NC, mask, env):
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
     
-    pred = predict_missing_features(NC, true_state, mask)  
-    believed_state = np.copy(true_state)
-    for i in range(state_space_dimension):
-        if mask[i] == 0:            
-            believed_state[i] = pred[i]
+    believed_state = ms_ft_pred_fnc(true_state, mask)  
 
     while True:     
         a = policy(believed_state)
         
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
         R+=reward
-        pred = predict_missing_features(NC, state, mask)
-        believed_state = np.copy(state)
-        for i in range(state_space_dimension):
-            if mask[i] == 0:
-                believed_state[i] = pred[i]
+        believed_state = ms_ft_pred_fnc(state, mask)
+       
         if(terminated or truncated): 
             break
         
@@ -96,7 +79,7 @@ def global_sverl_value_function(policy, seed, NC, mask, env):
 
 
 #Takes a feature i, and a mask C. Gives the marginal gain of adding feature i to the mask C, via an evaluation function
-def marginal_gain(policy, neural_conditioner,eval_function , features, C, seed, env): 
+def marginal_gain(policy, ms_ft_prd_fnc,eval_function , features, C, seed, env): 
     C_i = np.copy(C)
     for i in features:
         C_i[i] = 1
@@ -109,15 +92,15 @@ def marginal_gain(policy, neural_conditioner,eval_function , features, C, seed, 
     else: 
         V_C = eval_with_missing_features(policy, seed, NC, C) """
 
-    V_C = eval_function(policy, seed, neural_conditioner, C, env)
+    V_C = eval_function(policy, seed, ms_ft_prd_fnc, C, env)
 
-    V_C_i= eval_function(policy, seed, neural_conditioner, C_i, env)
+    V_C_i= eval_function(policy, seed, ms_ft_prd_fnc, C_i, env)
 
     return V_C_i - V_C
 
 
 #Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
-def shapley_value(policy, neural_conditioner, eval_function,  G, masked_group, seed, env):
+def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed, env):
     state_space = env.observation_space.shape[0]
 
     list_of_C = get_all_group_subsets(G, masked_group)
@@ -130,5 +113,5 @@ def shapley_value(policy, neural_conditioner, eval_function,  G, masked_group, s
 
     state_space = env.observation_space.shape[0]
     for i, C in enumerate(list_of_C):
-        sum += marginal_gain(policy, neural_conditioner, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(num_groups_per_C[i])))*factorial(num_groups - np.sum(num_groups_per_C[i]) - 1)) / factorial(num_groups)
+        sum += marginal_gain(policy, ms_ft_pred_fnc, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(num_groups_per_C[i])))*factorial(num_groups - np.sum(num_groups_per_C[i]) - 1)) / factorial(num_groups)
     return sum

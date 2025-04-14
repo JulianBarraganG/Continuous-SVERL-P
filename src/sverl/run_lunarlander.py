@@ -53,12 +53,12 @@ value_empty_set = 0
 G = [[0, 1], [2, 3], [4], [5], [6, 7]] #The groups of features. In this case, we have 8 features, and each feature is its own group.
 print("Calculating Shapley values...")
 for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy.predict, i, nc, np.zeros(8), env)
-    shapley_pos += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_vel += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 1, i, env)
-    shapley_angle += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 2, i, env)
-    shapley_angle_vel += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 3, i, env)
-    shapley_leg_bools += shapley.shapley_value(policy.predict, nc, shapley.global_sverl_value_function, G, 4, i, env)
+    value_empty_set += shapley.global_sverl_value_function(policy.predict, i, nc.pred, np.zeros(8), env)
+    shapley_pos += shapley.shapley_value(policy.predict, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_vel += shapley.shapley_value(policy.predict, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
+    shapley_angle += shapley.shapley_value(policy.predict, nc.pred, shapley.global_sverl_value_function, G, 2, i, env)
+    shapley_angle_vel += shapley.shapley_value(policy.predict, nc.pred, shapley.global_sverl_value_function, G, 3, i, env)
+    shapley_leg_bools += shapley.shapley_value(policy.predict, nc.pred, shapley.global_sverl_value_function, G, 4, i, env)
 shapley_pos /= NUM_ROUNDS
 shapley_vel /= NUM_ROUNDS
 shapley_angle /= NUM_ROUNDS
