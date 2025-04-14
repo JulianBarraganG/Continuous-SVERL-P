@@ -107,7 +107,7 @@ def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed,
     sum = 0
 
     num_groups = len(G) #Number of groups #Number of subsets
-    num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C
+    num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C (|T|_g in the paper)
 
 
 
