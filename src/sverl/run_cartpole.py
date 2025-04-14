@@ -3,6 +3,7 @@ import numpy as np  # For numerical operations
 import shapley
 import utils
 import NeuralConditioner 
+import RandomSampler
 import agent
 from tqdm import tqdm, trange  
 from torch.utils.data import Dataset, DataLoader
@@ -43,16 +44,19 @@ discriminator = NeuralConditioner.Discriminator(input_dim)
 print("Training Neural Conditioner...")
 NeuralConditioner.train_nc(nc, discriminator, dataloader, epochs=10)
 
+rs = RandomSampler.RandomSampler(trajectories)
+
 
 #The i is the seed. This is the only way I know how to set the starting position 
 #We are doing 100 different seeds, and averaging the results.
 NUM_ROUNDS = 10
+
 shapley_cart_pos = 0
 shapley_cart_vel = 0
 shapley_pole_angle = 0
 shapley_pole_vel = 0
 G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values...")
+print("Calculating Shapley values based on NC...")
 for i in trange(NUM_ROUNDS): 
     shapley_cart_pos += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
     shapley_cart_vel += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
@@ -74,7 +78,7 @@ shapley_cart = 0
 shapley_pole = 0
 
 G= [[0,1], [2,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values...")
+print("Calculating Shapley values based on NC...")
 for i in trange(NUM_ROUNDS): 
     shapley_cart += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
     shapley_pole += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
@@ -83,4 +87,47 @@ shapley_pole /= NUM_ROUNDS
 
 print("Shapley value of Cart: ", shapley_cart)
 print("Shapley value of pole: ", shapley_pole)
+
+
+
+#The i is the seed. This is the only way I know how to set the starting position 
+#We are doing 100 different seeds, and averaging the results.
+NUM_ROUNDS = 10
+shapley_cart_pos = 0
+shapley_cart_vel = 0
+shapley_pole_angle = 0
+shapley_pole_vel = 0
+G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+print("Calculating Shapley values based on Random Sampling...")
+for i in trange(NUM_ROUNDS): 
+    shapley_cart_pos += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_cart_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
+    shapley_pole_angle += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 2, i, env)
+    shapley_pole_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 3, i, env)
+shapley_cart_pos /= NUM_ROUNDS
+shapley_cart_vel /= NUM_ROUNDS
+shapley_pole_angle /= NUM_ROUNDS
+shapley_pole_vel /= NUM_ROUNDS
+print("Shapley value of Cart Position: ", shapley_cart_pos)
+print("Shapley value of Cart Velocity: ", shapley_cart_vel)
+print("Shapley value of Pole Angle: ", shapley_pole_angle)
+print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
+
+
+
+NUM_ROUNDS = 10
+shapley_cart = 0
+shapley_pole = 0
+
+G= [[0,1], [2,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+print("Calculating Shapley values based on Random Sampling...")
+for i in trange(NUM_ROUNDS): 
+    shapley_cart += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_pole += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
+shapley_cart /= NUM_ROUNDS
+shapley_pole /= NUM_ROUNDS
+
+print("Shapley value of Cart: ", shapley_cart)
+print("Shapley value of pole: ", shapley_pole)
+
 

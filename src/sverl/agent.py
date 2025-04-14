@@ -60,7 +60,7 @@ def train_cartpole_agent(policy_net , env):
                 initial_weights,  # Initial search point
                 initial_sigma,  # Initial global step-size sigma
                 args=([policy_net, env]),  # Arguments passed to the fitness function
-                options={'ftarget': -999.9, 'tolflatfitness':1000, 'eval_final_mean':False})
+                options={'ftarget': -9999.9, 'tolflatfitness':1000, 'eval_final_mean':False})
     env.close()
   
     # Set the policy parameters to the final solution

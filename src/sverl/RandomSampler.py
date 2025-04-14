@@ -19,7 +19,7 @@ class RandomSampler:
         pred = np.zeros(self.size)
 
         for i, b in enumerate(mask): 
-            if b == 1: 
+            if b == 0: 
                 #sample from the data
                 idx = np.random.randint(0, self.length)
                 pred[i] = self.data[idx, i]
@@ -29,3 +29,4 @@ class RandomSampler:
                 pred[i] = observed_features[i]
 
         return pred
+
