@@ -1,10 +1,11 @@
 import numpy as np 
 
 class RandomSampler:
-    def __init__(self, data):
+    def __init__(self, data, null_value=0):
         self.data = data
         self.size = data.shape[1]
         self.length = data.shape[0]
+        self.null_value = null_value
 
 
     def pred(self, observed_features, mask):
@@ -19,13 +20,11 @@ class RandomSampler:
         pred = np.zeros(self.size)
 
         for i, b in enumerate(mask): 
-            if b == 0: 
+            if b == self.null_value: 
                 #sample from the data
                 idx = np.random.randint(0, self.length)
                 pred[i] = self.data[idx, i]
-
-        for i in range(self.size):
-            if pred[i] == 0:
+            else:
                 pred[i] = observed_features[i]
 
         return pred
