@@ -13,7 +13,7 @@ action_space_dimension = 4
 state_space_dimension = 8
 
 print("Training agent...")
-policy = lunar_agent.train(env, train_episodes=2) #Here we train the agent and get a policy
+policy = lunar_agent.train(env, train_episodes=50) #Here we train the agent and get a policy
 
 #Want to report how good the policy is
 print("Evaluating policy...")
@@ -28,10 +28,10 @@ trajectories = utils.get_trajectory(policy.predict, env, time_horizon = 10**3) #
 #which is used to train the neural conditioner
 
 
-dataset = utils.StateFeatureDataset(trajectories)
-
 batch_size = 32
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+dataset = utils.StateFeatureDataset(trajectories, batch_size=batch_size, shuffle=True)
+
+dataloader = dataset.dataloader
 input_dim = 8  # size of the data. the state-space
 
 latent_dim = 64  # Size of the latent space

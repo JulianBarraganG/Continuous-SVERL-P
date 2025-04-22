@@ -8,8 +8,9 @@ import time
 import numpy as np
 
 class StateFeatureDataset(Dataset):
-    def __init__(self, data):
+    def __init__(self, data, batch_size=32, shuffle=True):
         self.data = torch.FloatTensor(data)  # Convert to PyTorch tensor
+        self.dataloader = DataLoader(self.data, batch_size=batch_size, shuffle=shuffle)
 
     def __len__(self):
         return len(self.data)

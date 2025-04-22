@@ -28,14 +28,14 @@ print("Standard deviation when running ", no_evaluation_episodes, " episodes:: "
 
 #EVERYTHING BELOW SHOULD HOPEFULLY BE GENERAL AT LEAST FOR ALL GYMNASIUM ENVS
 print("Generating trajectories...")
-trajectories = utils.get_trajectory(policy, env, time_horizon = 10**4) #Running the agent for 20 times, and storing the results
+trajectories = utils.get_trajectory(policy, env, time_horizon = 10**2) #Running the agent for 20 times, and storing the results
 #Also storing the trajectories, which is used to train the Neural Conditioner
 
 
-dataset = utils.StateFeatureDataset(trajectories)
-
 batch_size = 32
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+dataset = utils.StateFeatureDataset(trajectories, batch_size=batch_size, shuffle=True)
+dataloader = dataset.dataloader
+
 input_dim = 4  # size of the data
 
 latent_dim = 64  # Size of the latent space
