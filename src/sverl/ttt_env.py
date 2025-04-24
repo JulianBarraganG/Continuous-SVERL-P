@@ -41,7 +41,7 @@ class TTT():
         Resets the environment for a new game.
         Or sets env to given state.
         """
-
+        
         if start_state is None:
             if(seed is not None): np.random.seed(seed) # Set seed for reproducibility
 
@@ -49,8 +49,9 @@ class TTT():
             if np.random.rand() < 0.5: self.minmax_player() # Starting player is chosen randomly
 
         else: self.board = start_state.copy().reshape(3, 3)
+
         
-        return self.board, {'valid_actions': self.valid_dict[self.board.tobytes()]}
+        return self.board.copy(), {'valid_actions': self.valid_dict[self.board.tobytes()]}
     
     def close(self): 
         self.reset()
@@ -76,7 +77,7 @@ class TTT():
 
         reward = self.reward_dict[winner]
 
-        return self.board, reward, done, False, {'valid_actions': self.valid_dict[self.board.tobytes()]}
+        return self.board.copy(), reward, done, False, {'valid_actions': self.valid_dict[self.board.tobytes()]}
         
     # Currently valid actions.
     def valid_actions(self, state): return (state == 0).nonzero()[0]
@@ -117,7 +118,9 @@ class TTT():
         """
         A minmax player plays the optimal move.
         """
-
+        #The following line is a subpar implementation, but it forces the minmaxplayer to consider all best moves from player 1's perspective
+        #Then we copy this dictionairy into the agent, and it uses it to play
+        _, _ = self.score_dict[tuple([self.board.tobytes(), 1])]
         _, best_moves = self.score_dict[tuple([self.board.tobytes(), 2])]
         self.board[self.action_dict[np.random.choice(best_moves)]] = 2
 
@@ -156,6 +159,9 @@ class TTT():
             best_moves = all_moves[scores == best_score]
                         
             return best_score, best_moves
+        
+    def get_optimal_policy_dict(self): 
+        return self.score_dict.copy()
 
 # These dictionaries are just for speeding up some stuff.
 
