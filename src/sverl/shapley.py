@@ -62,14 +62,14 @@ def global_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
     
-    believed_state = ms_ft_pred_fnc(true_state, mask)  
+    believed_state = ms_ft_pred_fnc(true_state.flatten(), mask)  
 
     while True:     
         a = policy(believed_state)
         
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
         R+=reward
-        believed_state = ms_ft_pred_fnc(state, mask)
+        believed_state = ms_ft_pred_fnc(state.flatten(), mask)
        
         if(terminated or truncated): 
             break
@@ -101,7 +101,6 @@ def marginal_gain(policy, ms_ft_prd_fnc,eval_function , features, C, seed, env):
 
 #Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
 def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed, env):
-    state_space = env.observation_space.shape[0]
 
     list_of_C = get_all_group_subsets(G, masked_group)
     sum = 0
@@ -109,9 +108,8 @@ def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed,
     num_groups = len(G) #Number of groups #Number of subsets
     num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C (|T|_g in the paper)
 
+    
 
-
-    state_space = env.observation_space.shape[0]
     for i, C in enumerate(list_of_C):
         sum += marginal_gain(policy, ms_ft_pred_fnc, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(num_groups_per_C[i])))*factorial(num_groups - np.sum(num_groups_per_C[i]) - 1)) / factorial(num_groups)
     return sum

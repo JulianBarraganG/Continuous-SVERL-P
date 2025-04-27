@@ -19,6 +19,9 @@ class Agent:
             pos = np.zeros(9)
             pos[i] = 1
             starting_states.append(pos)
+            pos = np.zeros(9)
+            pos[i] = 2
+            starting_states.append(pos)
         for state in starting_states: 
             _, _ = env.reset(start_state = state)
             env.minmax_player()
@@ -26,5 +29,8 @@ class Agent:
         self.score_dict = env.get_optimal_policy_dict()         
 
     def choose_action(self, state): 
+        if(state.shape == (9,)): 
+            state = state.reshape(3,3)
+        print(state)
         _, best_moves = self.score_dict[tuple([state.tobytes(), 1])]
         return np.random.choice(best_moves)
