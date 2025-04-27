@@ -70,4 +70,7 @@ class Agent:
         if(state.shape == (9,)): 
             state = state.reshape(3,3)
         _, best_moves = self.score_dict[tuple([state.tobytes(), 1])]
+        if(best_moves is None): 
+            #If the agent thinks there are no legal moves, but there actually are (The random sampler
+            #has sampled 1 where it should be 0 for example) - what do we do in this case?
         return np.random.choice(best_moves)
