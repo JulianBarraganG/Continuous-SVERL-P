@@ -1,39 +1,37 @@
 import gymnasium as gym  # Defines RL environments
 import numpy as np  # For numerical operations
 import shapley
-import utils
 import NeuralConditioner 
 import RandomSampler
-import agent
-from tqdm import tqdm, trange  
+import pickle
+from utils import StateFeatureDataset, get_agent_and_trajectory
+from cartpole_agent import PolicyCartpole, train_cartpole_agent
+from os.path import join, exists
+from os import makedirs
+from tqdm import tqdm, trange
 from torch.utils.data import Dataset, DataLoader
 
 env = gym.make('CartPole-v1')
 state_space_dimension = env.observation_space.shape[0]
 
-
 action_space_dimension = env.action_space.n - 1
 
-policy = agent.Policy_cartpole(state_space_dimension, action_space_dimension)
-print("Training agent...")
-policy = agent.train_cartpole_agent(policy, env) #Here we train the agent, and report the evaluation steps
+policy = PolicyCartpole(state_space_dimension, action_space_dimension)
+model_filepath = join("models", "cartpole_policy.pkl")
+trajectory_filename = "cartpole_trajectory"
 
-#want to report how good the policy is
-print("Evaluating policy...")
-no_evaluation_episodes = 100
-reward = utils.evaluate_policy(no_evaluation_episodes, env, policy) #Evaluating the policy
-print("Average reward when running ", no_evaluation_episodes, " episodes: ", np.mean(reward)) #Printing the average reward
-print("Standard deviation when running ", no_evaluation_episodes, " episodes:: ", np.std(reward)) #Printing the standard deviation of the reward
-
-
-#EVERYTHING BELOW SHOULD HOPEFULLY BE GENERAL AT LEAST FOR ALL GYMNASIUM ENVS
-print("Generating trajectories...")
-trajectories = utils.get_trajectory(policy, env, time_horizon = 10**2) #Running the agent for 20 times, and storing the results
-#Also storing the trajectories, which is used to train the Neural Conditioner
-
+# Check if the model and trajectory files exist, otherwise train and save them
+feature_imputation_model_missing = True # Should check for feature imputers
+# We assume trajectory file is csv
+policy, trajectory = get_agent_and_trajectory(policy,
+                                              env,
+                                              model_filepath,
+                                              trajectory_filename,
+                                              train_cartpole_agent,
+                                              gen_and_save_trajectory=feature_imputation_model_missing)
 
 batch_size = 32
-dataset = utils.StateFeatureDataset(trajectories, batch_size=batch_size, shuffle=True)
+dataset = StateFeatureDataset(trajectory, batch_size=batch_size, shuffle=True)
 dataloader = dataset.dataloader
 
 input_dim = 4  # size of the data
@@ -44,7 +42,7 @@ discriminator = NeuralConditioner.Discriminator(input_dim)
 print("Training Neural Conditioner...")
 NeuralConditioner.train_nc(nc, discriminator, dataloader, epochs=10)
 
-rs = RandomSampler.RandomSampler(trajectories)
+rs = RandomSampler.RandomSampler(trajectory)
 
 
 #The i is the seed. This is the only way I know how to set the starting position 

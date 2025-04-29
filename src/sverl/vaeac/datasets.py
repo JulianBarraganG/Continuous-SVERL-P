@@ -14,7 +14,14 @@ def compute_normalization(data, one_hot_max_sizes):
     to divide by) for each feature of the dataset.
     For categorical features mean is zero and std is one.
     i-th feature is denoted to be categorical if one_hot_max_sizes[i] >= 2.
-    Returns two vectors: means and stds.
+
+    Parameters:
+    -----------
+    data: torch.Tensor of shape (N, D)
+
+    Returns:
+    --------
+    norm_vector_mean: torch.Tensor of shape (D,)
     """
     norm_vector_mean = torch.zeros(len(one_hot_max_sizes))
     norm_vector_std = torch.ones(len(one_hot_max_sizes))

@@ -8,9 +8,9 @@ import cma
 import numpy as np
 
 # Model definition
-class Policy_cartpole(nn.Module):
+class PolicyCartpole(nn.Module):
     def __init__(self, state_space_dimension, action_space_dimension, num_neurons=5, bias = False):
-        super(Policy_cartpole, self).__init__()
+        super(PolicyCartpole, self).__init__()
         self.state_space_dimension = state_space_dimension
         self.fc = nn.Linear(state_space_dimension, num_neurons, bias=bias)
         self.fc1 = nn.Linear(num_neurons, action_space_dimension, bias=bias)
@@ -51,7 +51,7 @@ def fitness_cart_pole(x, nn, env):
 
 
 #Again, just comes from the assignment
-def train_cartpole_agent(policy_net , env):     
+def train_cartpole_agent(policy_net , env, ftarget=-9999.9):     
     d = sum(param.numel() for param in policy_net.parameters())
     initial_weights = np.random.normal(0, 0.01, d)  # Random parameters for initial policy, d denotes the number of weights
     initial_sigma = .01 # Initial global step-size sigma
@@ -60,7 +60,7 @@ def train_cartpole_agent(policy_net , env):
                 initial_weights,  # Initial search point
                 initial_sigma,  # Initial global step-size sigma
                 args=([policy_net, env]),  # Arguments passed to the fitness function
-                options={'ftarget': -9999.9, 'tolflatfitness':1000, 'eval_final_mean':False})
+                options={'ftarget': ftarget, 'tolflatfitness':1000, 'eval_final_mean':False})
     env.close()
   
     # Set the policy parameters to the final solution

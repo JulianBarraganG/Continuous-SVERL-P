@@ -1,4 +1,5 @@
 papers/
 *.pdf
 */logs/
-
+*/*/data/
+*/*/models/
