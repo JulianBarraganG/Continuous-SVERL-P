@@ -14,7 +14,6 @@ env = TTT()
 agent = Agent()
 print("Training agent...")
 
-agent.train(env)
 
 #want to report how good the policy is
 print("Evaluating policy...")
@@ -41,11 +40,13 @@ rs = RandomSampler.RandomSampler(np.array(trajectories))
 NUM_ROUNDS = 10
 
 shapley_values = np.zeros(9)
+initial_state = [[0,0,0],[0,1,0],[2,0,2]]
 G= [[0], [1], [2], [3], [4], [5], [6], [7], [8]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
 print("Calculating Shapley values based on NC...")
 for i in trange(NUM_ROUNDS): 
     for square in range(len(shapley_values)):
-        shapley_values[square] += shapley.shapley_value(agent.choose_action, rs.pred, shapley.global_sverl_value_function, G, square, i, env)
+        np.random.seed(i)
+        shapley_values[square] += shapley.shapley_value(agent.choose_action, rs.pred, shapley.local_sverl_value_function, G, square, initial_state, env)
   
 shapley_values/NUM_ROUNDS
 

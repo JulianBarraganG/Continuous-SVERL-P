@@ -15,35 +15,27 @@ import numpy as np
 #In the initital step, it can be saved, so it doesn't really matter much. 
 #I haven't used this function much
 #ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
-def local_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
+def local_sverl_value_function(policy, initial_state, ms_ft_pred_fnc, mask, env):
     ''''
     'Evaluate the policy from a given state, using the believed state to make the initial decision'
     '''
     R = 0
-    true_state = env.reset(seed=seed)[0]  # Forget about previous episode
-    state_space_dimension = env.observation_space.shape[0]
-
-    believed_initial_state = ms_ft_pred_fnc(true_state, mask)
-
-    print("Believed state: ", believed_initial_state)
-    print("True state: ", true_state)
-
-    print("Action if evaluated on true state: ", policy(true_state))
-    print("Action if evaluated on believed state: ", policy(believed_initial_state))
+    
+    print(initial_state)
+    believed_initial_state = ms_ft_pred_fnc(initial_state, mask)
+    print(believed_initial_state)
 
     a = policy(believed_initial_state)
     
     state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
     R +=reward
-    state_tensor = torch.Tensor( state.reshape((1, state_space_dimension)) ) 
     
 
     while True:
-        a = policy(state_tensor)
+        a = policy(state)
         
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
         R+=reward
-        state_tensor = torch.Tensor( state.reshape((1, state_space_dimension)) )
         if(terminated or truncated): 
             break
         

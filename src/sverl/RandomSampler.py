@@ -26,7 +26,6 @@ class RandomSampler:
         """
 
         pred = np.zeros(self.size)
-
         # Get missing features from the same data sample
         idx = np.random.randint(0, self.length)
         for i, b in enumerate(mask): 
