@@ -1,10 +1,10 @@
 import gymnasium as gym  # Defines RL environments
 import numpy as np  # For numerical operations
 import shapley
-import NeuralConditioner 
+
 import RandomSampler
 import pickle
-from utils import StateFeatureDataset, get_agent_and_trajectory
+from utils import StateFeatureDataset, get_agent_and_trajectory, get_neural_conditioner, get_random_sampler
 from cartpole_agent import PolicyCartpole, train_cartpole_agent
 from os.path import join, exists
 from os import makedirs
@@ -19,6 +19,8 @@ action_space_dimension = env.action_space.n - 1
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 model_filepath = join("models", "cartpole_policy.pkl")
 trajectory_filename = "cartpole_trajectory"
+rs_filepath = join("imputation_models","cartpole_rs.pkl")
+nc_filepath = join("imputation_models","cartpole_nc.pkl")
 
 # Check if the model and trajectory files exist, otherwise train and save them
 feature_imputation_model_missing = True # Should check for feature imputers
@@ -30,19 +32,19 @@ policy, trajectory = get_agent_and_trajectory(policy,
                                               train_cartpole_agent,
                                               gen_and_save_trajectory=feature_imputation_model_missing)
 
-batch_size = 32
-dataset = StateFeatureDataset(trajectory, batch_size=batch_size, shuffle=True)
-dataloader = dataset.dataloader
+if feature_imputation_model_missing:
+    batch_size = 32
+    dataset = StateFeatureDataset(trajectory, batch_size=batch_size, shuffle=True)
+    dataloader = dataset.dataloader
+    input_dim = 4  # size of the data
+    latent_dim = 64  # Size of the latent space
 
-input_dim = 4  # size of the data
+    nc = get_neural_conditioner(nc_filepath, input_dim, latent_dim, dataloader)
+    rs = get_random_sampler(rs_filepath, trajectory)
+else: 
+    nc = get_neural_conditioner(nc_filepath, None, None, None)
+    rs = get_random_sampler(rs_filepath, None)
 
-latent_dim = 64  # Size of the latent space
-nc = NeuralConditioner.NC(input_dim, latent_dim)
-discriminator = NeuralConditioner.Discriminator(input_dim)
-print("Training Neural Conditioner...")
-NeuralConditioner.train_nc(nc, discriminator, dataloader, epochs=10)
-
-rs = RandomSampler.RandomSampler(trajectory)
 
 
 #The i is the seed. This is the only way I know how to set the starting position 
@@ -77,21 +79,21 @@ print("Value of empty set: ", value_empty_set)
 
 
 NUM_ROUNDS = 10
-shapley_cart = 0
-shapley_pole = 0
+shapley_pos = 0
+shapley_vel = 0
 value_empty_set = 0
-G= [[0,1], [2,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+G= [[0,2], [1,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
 print("Calculating Shapley values based on Random Sampler...")
 for i in trange(NUM_ROUNDS): 
     value_empty_set += shapley.global_sverl_value_function(policy, i, rs.pred, np.zeros(4), env)
-    shapley_cart += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_pole += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
-shapley_cart /= NUM_ROUNDS
-shapley_pole /= NUM_ROUNDS
+    shapley_pos += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
+shapley_pos /= NUM_ROUNDS
+shapley_vel /= NUM_ROUNDS
 value_empty_set /= NUM_ROUNDS
 
-print("Shapley value of Cart: ", shapley_cart)
-print("Shapley value of pole: ", shapley_pole)
+print("Shapley value of cart an angular position: ", shapley_pos)
+print("Shapley value of cart and angular velocity: ", shapley_vel)
 print("Value of empty set: ", value_empty_set)
 
 
@@ -128,19 +130,19 @@ print("Value of empty set: ", value_empty_set)
 
 
 NUM_ROUNDS = 10
-shapley_cart = 0
-shapley_pole = 0
+shapley_pos = 0
+shapley_vel = 0
 value_empty_set = 0
-G= [[0,1], [2,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+G= [[0,2], [1,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
 print("Calculating Shapley values based on NC...")
 for i in trange(NUM_ROUNDS): 
     value_empty_set += shapley.global_sverl_value_function(policy, i, nc.pred, np.zeros(4), env)
-    shapley_cart += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_pole += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
-shapley_cart /= NUM_ROUNDS
-shapley_pole /= NUM_ROUNDS
+    shapley_pos += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_vel += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
+shapley_pos /= NUM_ROUNDS
+shapley_vel /= NUM_ROUNDS
 value_empty_set /= NUM_ROUNDS
 
-print("Shapley value of Cart: ", shapley_cart)
-print("Shapley value of pole: ", shapley_pole)
+print("Shapley value of cart and angular position: ", shapley_pos)
+print("Shapley value of cart and angular velocity: ", shapley_vel)
 print("Value of empty set: ", value_empty_set)

@@ -7,7 +7,8 @@ from os.path import exists, join
 from os import makedirs
 import pickle
 import time
-
+from NeuralConditioner import NC, Discriminator, train_nc
+from RandomSampler import RandomSampler
 import numpy as np
 
 class StateFeatureDataset(Dataset):
@@ -183,7 +184,7 @@ def get_agent_and_trajectory(policy,
         makedirs("models")
     if not exists(model_filepath):
         print("training agent...")
-        policy = training_function(policy, env, ftarget=-999.9) # train and report steps until convergence
+        policy = training_function(policy, env, ftarget=-9999.9) # train and report steps until convergence
 
         # check that policy learned
         print("evaluating policy...")
@@ -213,3 +214,63 @@ def get_agent_and_trajectory(policy,
 
     return policy, None
 
+def get_neural_conditioner(filepath, input_dim, latent_dim, dataloader):
+    """
+    Loads the neural conditioner from the given filepath, or creates and saves it,
+    if it doesn't exist.
+
+    parameters:
+    ----------
+    filepath: path to the neural conditioner model
+    input_dim: input dimension of the neural conditioner
+    latent_dim: latent dimension of the neural conditioner
+    dataloader: dataloader for training the neural conditioner
+
+    returns:
+    -------
+    nc: loaded neural conditioner model
+    """
+    if not exists("imputation_models"):
+        makedirs("imputation_models")
+
+    if not exists(filepath):
+        nc = NC(input_dim, latent_dim)
+        discriminator = Discriminator(input_dim)
+        print("Training Neural Conditioner...")
+        train_nc(nc, discriminator, dataloader, epochs=10)
+        pickle.dump(nc, open(filepath, "wb")) #saving the neural conditioner
+        print(f"Neural Conditioner saved at: {filepath}")
+        return nc
+    else: 
+        print("Loading Neural Conditioner...")
+        nc = pickle.load(open(filepath, "rb"))
+        return nc
+    
+def get_random_sampler(filepath, trajectory):
+    """
+    Loads the random sampler from the given filepath, or creates it and saves it
+    if it doesn't exist.
+
+    parameters:
+    ----------
+    filepath: path to the neural conditioner model
+    trajectory: trajectory to be used for creating the random sampler
+
+    returns:
+    -------
+    nc: loaded random sampling model
+    """
+    if not exists("imputation_models"):
+        makedirs("imputation_models")
+
+    if not exists(filepath):
+        print("Training Random Sampler...")
+        rs = RandomSampler(trajectory)
+        pickle.dump(rs, open(filepath, "wb")) #saving the random sampler
+        print(f"Random Sampler saved at: {filepath}")
+        return rs
+    else: 
+        print("Loading Random Sampler...")
+        rs = pickle.load(open(filepath, "rb"))
+        return rs
+    
