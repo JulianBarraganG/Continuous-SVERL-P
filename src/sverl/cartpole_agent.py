@@ -9,13 +9,40 @@ import numpy as np
 
 # Model definition
 class PolicyCartpole(nn.Module):
+    
     def __init__(self, state_space_dimension, action_space_dimension, num_neurons=5, bias = False):
+        """
+        Policy network for CartPole environment.
+
+        Parameters
+        ----------
+            state_space_dimension (int): 
+                Dimension of the state space.
+            action_space_dimension (int):
+                Dimension of the action space.
+            num_neurons (int):
+                Number of neurons in the hidden layer.
+            bias (bool):
+                Whether to include bias in the linear layers. Should be False for CartPole.
+        """
         super(PolicyCartpole, self).__init__()
         self.state_space_dimension = state_space_dimension
         self.fc = nn.Linear(state_space_dimension, num_neurons, bias=bias)
         self.fc1 = nn.Linear(num_neurons, action_space_dimension, bias=bias)
 
     def forward(self, x):
+        """
+        Forward pass through the network.
+        
+        Parameters
+        ----------
+            x (numpy.ndarray):
+                Input state vector.
+        Returns
+        -------
+            int:
+                Action to be taken (0 or 1).
+        """
         x = torch.Tensor( x.reshape((1, self.state_space_dimension)) )
         hidden = torch.tanh(self.fc(x))
         output = self.fc1(hidden)
@@ -26,8 +53,9 @@ def fitness_cart_pole(x, nn, env):
     '''
     Returns negative accumulated reward for single pole, fully environment.
 
-    Parameters:
-        x: Parameter vector encoding the weights.
+    Parameters
+    ----------
+        x : Parameter vector encoding the weights.
         nn: Parameterized model.
         env: Environment ('CartPole-v?').
     '''
@@ -51,7 +79,24 @@ def fitness_cart_pole(x, nn, env):
 
 
 #Again, just comes from the assignment
-def train_cartpole_agent(policy_net , env, ftarget=-9999.9):     
+def train_cartpole_agent(policy_net , env, ftarget=-9999.9):  
+    """
+    Function to train a policy network for the CartPole environment using CMA-ES.   
+    
+    Parameters
+    ----------
+        policy_net (PolicyCartpole): 
+            Policy network to be trained.
+        env (gym.Env): 
+            CartPole environment.
+        ftarget (float): 
+            Target fitness value for CMA-ES. Default is -9999.9.
+    
+    Returns
+    -------
+        policy_net (PolicyCartpole): 
+            Trained policy network.
+    """   
     d = sum(param.numel() for param in policy_net.parameters())
     initial_weights = np.random.normal(0, 0.01, d)  # Random parameters for initial policy, d denotes the number of weights
     initial_sigma = .01 # Initial global step-size sigma

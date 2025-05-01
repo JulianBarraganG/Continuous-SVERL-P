@@ -12,14 +12,32 @@ from RandomSampler import RandomSampler
 import numpy as np
 
 class StateFeatureDataset(Dataset):
-    def __init__(self, data, batch_size=32, shuffle=True):
+    def __init__(self, data, batch_size=32, shuffle=False):
+        """ 
+        Converts the data to a PyTorch dataset and creates a DataLoader.
+        
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to be converted to a PyTorch dataset.
+        batch_size : int, optional
+            The batch size for the DataLoader. Default is 32.
+        shuffle : bool, optional
+            Whether to shuffle the data. Default is True.
+        """
         self.data = torch.FloatTensor(data)  # convert to pytorch tensor
         self.dataloader = DataLoader(self.data, batch_size=batch_size, shuffle=shuffle)
 
     def __len__(self):
+        """
+        Returns the length of the dataset.
+        """
         return len(self.data)
 
     def __getitem__(self, idx):
+        """
+        Returns the item at the specified index.
+        """
         return self.data[idx]
     
     
@@ -31,12 +49,17 @@ def get_all_subsets(fixed_features, list_length):
     """
     generate all binary lists of given length with certain positions fixed to 0.
     
-    args:
-        fixed_features: list of indices that must be 0 in all variations
-        list_length: total length of the binary lists to generate
+    Parameters
+    ----------
+        fixed_features (list): 
+            list of indices that must be 0 in all variations
+        list_length (int): 
+            total length of the binary lists to generate
         
-    returns:
-        list of all possible binary lists with the specified features fixed to 0
+    Returns
+    -------
+        variations (list):
+            list of all possible binary lists with the specified features fixed to 0
     """
     variations = []
     
@@ -61,17 +84,34 @@ def get_all_subsets(fixed_features, list_length):
     return variations
 
 def get_r(k, masked_group):
-    """gets the permutations of the groups, where masked group is fixed to 0."""
+    """
+    gets the permutations of the groups, where masked group is fixed to 0.
+    
+    Parameters
+    ----------
+        k (int): 
+            number of groups
+        masked_group (int): 
+            the group that is fixed to 0
+    Returns
+    -------
+            get_all_subsets which treats groups as features
+    """
     return get_all_subsets([masked_group], k)
 
 def get_all_group_subsets(g, masked_group):
     """
     gets all permutations of subsets, with masked group fixed to 0.
-    args:
-        g: the groups
-        masked_group: the group that is fixed to 0
-    returns:
-        permutations: the permutations of the groups
+    Parameters
+    ----------
+        g (list):
+            the groups
+        masked_group (int):
+            the group that is fixed to 0
+    Returns
+    -------
+        permutations (numpy.ndarray):             
+                all permutations of the groups, with masked group fixed to 0.   
     """
 
     # first index = group & second index = feature index
@@ -94,21 +134,35 @@ def get_all_group_subsets(g, masked_group):
 
 
 def get_trajectory(policy, env, time_horizon = 10**3): 
-    trajectory_features = []  # store the features of the trajectory
-    state = env.reset()[0]  # forget about previous episode
-    state_space_dimension = env.observation_space.shape[0]  # state space dimension
+    """
+    get a trajectory of the agent, given a policy and an environment. 
     
+    Parameters
+    ----------
+    policy: callable
+        the policy to use when generating trajectories, should take a state as input and return an action
+    env: gym.Env
+        the environment to generate trajectories from
+    time_horizon: int
+        the time horizon to generate trajectories for, default is 10**3
+    
+    Returns
+    -------
+    trajectory_features: numpy.ndarray
+        the trajectory features, shape (t, d), where t is the time horizon and d is the state space dimension
+    """
+    trajectory_features = []  # store the features of the trajectory
+    state = env.reset()[0]  # forget about previous episode    
     
     for _ in trange(time_horizon):     
 
         a = policy(state)
         
-        state, reward, terminated, truncated, _ = env.step(a)
+        state, _ , terminated, truncated, _ = env.step(a)
         if(terminated or truncated): 
             state = env.reset()[0]
             
-        trajectory_features.append(state)   
-        
+        trajectory_features.append(state)          
         
     return np.array(trajectory_features)
 
@@ -116,7 +170,7 @@ def save_trajectory(trajectories, filename, delimiter=','):
     """
     save the trajectory data to a csv-file.
 
-    parameters:
+    Parameters
     ----------
     trajectories: numpy array
         the trajectories to save,
@@ -237,7 +291,7 @@ def get_neural_conditioner(filepath, input_dim, latent_dim, dataloader):
         nc = NC(input_dim, latent_dim)
         discriminator = Discriminator(input_dim)
         print("Training Neural Conditioner...")
-        train_nc(nc, discriminator, dataloader, epochs=10)
+        train_nc(nc, discriminator, dataloader, epochs=100)
         pickle.dump(nc, open(filepath, "wb")) #saving the neural conditioner
         print(f"Neural Conditioner saved at: {filepath}")
         return nc

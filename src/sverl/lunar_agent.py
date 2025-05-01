@@ -2,11 +2,26 @@ from tqdm import tqdm, trange  # Progress bar
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections import deque
 
 import numpy as np
 
 class QNetwork(nn.Module):
     def __init__(self, state_size=8, action_size=4, hidden_size=10, bias=True):
+        """
+        Q-Network for reinforcement learning.
+        
+        Parameters
+        -------------
+            state_size (int): 
+                Size of the state space.
+            action_size (int): 
+                Size of the action space.
+            hidden_size (int): 
+                Number of neurons in the hidden layer.
+            bias (bool): 
+                Whether to include bias in the linear layers.
+        """
         super(QNetwork, self).__init__()
         self.state_size = state_size
         self.fc1 = nn.Linear(state_size, hidden_size, bias)  
@@ -14,12 +29,36 @@ class QNetwork(nn.Module):
         self.output_layer = nn.Linear(hidden_size + state_size, action_size, bias)
 
     def forward(self, x_input):
+        """
+        Forward pass through the network.
+        
+        Parameters
+        -------------
+            x_input (torch.Tensor): 
+                Input state tensor.
+        Returns
+        -------------
+            torch.Tensor: 
+                Q-values for each action.
+        """
         x = F.tanh(self.fc1(x_input))
         x = F.tanh(self.fc2(x))
         x = torch.cat((x_input, x), dim=1)
         x = self.output_layer(x)
         return x
     def predict(self, x_input): 
+        """
+        Predict the action based on the input state.
+        
+        Parameters
+        -------------
+            x_input (numpy.ndarray): 
+                Input state array.
+        Returns
+        -------------
+            int: 
+                Predicted action (index of the action with the highest Q-value).
+        """
         x_input = torch.from_numpy(x_input).unsqueeze(0)
         x = F.tanh(self.fc1(x_input))
         x = F.tanh(self.fc2(x))
@@ -29,15 +68,42 @@ class QNetwork(nn.Module):
         return x
 
     
-from collections import deque
+
 class Memory():
     def __init__(self, max_size = 1000):
+        """
+        Experience replay memory for storing past experiences.
+        
+        Parameters
+        -------------
+            max_size (int): 
+                Maximum size of the memory buffer.
+        """
         self.buffer = deque(maxlen=max_size)
     
     def add(self, experience):
+        """
+        Add an experience to the memory buffer.
+        
+        Parameters
+        -------------
+            experience (tuple): 
+                Experience tuple (state, action, reward, next_state).
+        """
         self.buffer.append(experience)
             
     def sample(self, batch_size):
+        """
+        Sample a batch of experiences from the memory buffer randomly 
+        
+        Parameters
+        -------------
+            batch_size (int):
+                Number of experiences to sample.
+        Returns
+        -------------
+            list:
+                List of sampled experiences."""
         idx = np.random.choice(np.arange(len(self.buffer)), 
                                size=batch_size, 
                                replace=False)
@@ -45,6 +111,40 @@ class Memory():
     
 
 def train(env, train_episodes = 400, hidden_size = 64, gamma = 0.99, learning_rate = 0.001, tau = .01, explore_start = 1.0, explore_stop = 0.0001, decay_rate = 0.05, memory_size = 10000, batch_size = 128):
+    """
+    Train a Q-learning agent using experience replay and delayed target network soft updates.
+    
+    Parameters
+    -------------
+        env (gym.Env):
+            Environment to train the agent on. We use it on the lunar lander 
+        train_episodes (int):
+            Number of training episodes.
+        hidden_size (int):
+            Number of neurons in the hidden layer of the Q-networks
+        gamma (float):
+            Discount factor for future rewards.
+        learning_rate (float):
+            Learning rate for the optimizer.
+        tau (float):
+            Soft update parameter for the target network.
+        explore_start (float):
+            Initial exploration probability.
+        explore_stop (float):
+            Final exploration probability.
+        decay_rate (float):
+            Decay rate for exploration probability.
+        memory_size (int):
+            Maximum size of the experience replay memory.
+        batch_size (int):
+            Size of the mini-batch for training.
+        
+        Returns
+        -------------
+            targetQN (QNetwork): 
+                Target Q-network after training. This network is used for action selection, and should be 
+                more stable than the main Q-network.
+    """
     pretrain_length = batch_size
     mainQN = QNetwork(hidden_size=hidden_size)
     targetQN = QNetwork(hidden_size=hidden_size)
@@ -122,14 +222,11 @@ def train(env, train_episodes = 400, hidden_size = 64, gamma = 0.99, learning_ra
                 
             # Set target_Qs to 0 for states where episode ended because of failure
             episode_ends = (next_states_np == np.zeros(states[0].shape)).all(axis=1)
-            target_Qs[episode_ends] = torch.zeros(action_size)
-
-            
+            target_Qs[episode_ends] = torch.zeros(action_size)            
             
             # Compute targets
             with torch.no_grad():
                 y = rewards + gamma * torch.max(target_Qs, dim=1).values       
-
 
             # Network learning starts here
             optimizer.zero_grad()

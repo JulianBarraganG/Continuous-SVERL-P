@@ -10,6 +10,14 @@ import numpy as np
 
 class NC(nn.Module):
     def __init__(self, input_dim, latent_dim=64):
+        """
+        Neural Conditioner (NC) model for missing data imputation. We use it to predict missing features in a state vector.
+        
+        Parameters
+        ----------
+            input_dim (int): Dimension of the input data.
+            latent_dim (int): Dimension of the latent space. Should typically be smaller than input_dim.
+        """
         super().__init__()
         self.input_dim = input_dim
         self.latent_dim = latent_dim
@@ -28,7 +36,20 @@ class NC(nn.Module):
             nn.Linear(128, input_dim)
         )
     
-    def forward(self, x_a, a, r, z):
+    def forward(self, x_a, a, r):
+        """
+        Forward pass through the NC model.
+
+        Parameters
+        ----------
+            x_a (torch.Tensor): Observed features (input_dim).
+            a (torch.Tensor): Mask indicating observed features (input_dim).
+            r (torch.Tensor): Mask indicating missing features (input_dim).
+
+        Returns
+        -------
+            torch.Tensor: Reconstructed features (input_dim).
+        """
         # Input shapes: [batch_size, input_dim] for x_a, a, r
         # z shape: [batch_size, latent_dim]
         encoder_input = torch.cat([x_a, a, r], dim=1)
@@ -38,6 +59,17 @@ class NC(nn.Module):
         return self.decoder(decoder_input) * r
 
     def pred(self, observed_features, mask): 
+        """
+        Predict missing features using the trained NC model.
+        
+        Parameters
+        ----------
+            observed_features (numpy.ndarray): Observed features (input_dim).
+            mask (numpy.ndarray): Mask indicating observed features (input_dim).
+        Returns
+        -------
+            numpy.ndarray: Predicted state vector (input_dim). The observed features are kept as is, and the missing features are predicted.
+        """
         # Convert to PyTorch tensors
         observed_features *= mask
         x_a = torch.FloatTensor(np.nan_to_num(observed_features, nan=0.0) * mask)
@@ -60,6 +92,14 @@ class NC(nn.Module):
 
 class Discriminator(nn.Module):
     def __init__(self, input_dim):
+        """ 
+        Discriminator model for the Neural Conditioner (NC). It distinguishes between real and fake data, 
+        and is trained using the output of the NC model GAN-style
+        
+        Parameters
+        ----------
+            input_dim (int): Dimension of the input data.
+        """
         super().__init__()
         # Input: [x_r (input_dim) + x_a (input_dim) + a (input_dim) + r (input_dim)] = 4*input_dim
         self.net = nn.Sequential(
@@ -72,10 +112,33 @@ class Discriminator(nn.Module):
         )
     
     def forward(self, x_r, x_a, a, r):
+        """
+        Forward pass through the Discriminator model.
+        
+        Parameters
+        ----------
+            x_r (torch.Tensor): Reconstructed features (input_dim).
+            x_a (torch.Tensor): Observed features (input_dim).
+            a (torch.Tensor): Mask indicating observed features (input_dim).
+            r (torch.Tensor): Mask indicating missing features (input_dim).
+        Returns
+        -------
+            torch.Tensor: Discriminator output (probability of being real).
+        """
         inputs = torch.cat([x_r, x_a, a, r], dim=1)
         return self.net(inputs)
 
 def train_nc(nc, discriminator, dataloader, epochs):
+    """
+    Train the Neural Conditioner (NC) and Discriminator models.
+    
+    Parameters
+    ----------
+        nc (NC): Parametrized Neural Conditioner model.
+        discriminator (Discriminator): Parametrized Discriminator model.
+        dataloader (DataLoader): DataLoader for the training data.
+        epochs (int): Number of training epochs.
+    """
     nc.train()
     discriminator.train()
     
@@ -101,9 +164,9 @@ def train_nc(nc, discriminator, dataloader, epochs):
                     r[i, torch.randint(0, input_dim, (1,))] = 1
             
             # Generate samples
-            z = torch.randn(batch_size, nc.latent_dim)
+            #z = torch.randn(batch_size, nc.latent_dim)
             x_a = x_real * a
-            x_r_fake = nc(x_a, a, r, z)
+            x_r_fake = nc(x_a, a, r)
             x_r_real = x_real * r
             
             # Train discriminator
