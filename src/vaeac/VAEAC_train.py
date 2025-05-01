@@ -66,7 +66,8 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
         networks['reconstruction_log_prob'],
         networks['proposal_network'],
         networks['prior_network'],
-        networks['generative_network']
+        networks['generative_network'],
+        networks['sampler']
     )
     if use_cuda:
         model = model.cuda()

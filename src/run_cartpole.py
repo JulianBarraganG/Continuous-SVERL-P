@@ -8,8 +8,6 @@ import sverl.shapley as shapley
 from sverl.utils import StateFeatureDataset, get_agent_and_trajectory, load_neural_conditioner, load_random_sampler, load_vaeac
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 
-import vaeac.VAEAC as VAEAC
-from vaeac.VAEAC_train import get_vaeac
 from vaeac.train_utils import TrainingArgs
 
 env = gym.make('CartPole-v1')

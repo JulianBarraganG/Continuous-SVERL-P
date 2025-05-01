@@ -37,12 +37,14 @@ class VAEAC(Module):
       experimental setups the model was tested on.
     """
     def __init__(self, rec_log_prob, proposal_network, prior_network,
-                 generative_network, sigma_mu=1e4, sigma_sigma=1e-4):
+                 generative_network, sampler_network, one_hot_max_sizes, sigma_mu=1e4, sigma_sigma=1e-4):
         super().__init__()
         self.rec_log_prob = rec_log_prob
         self.proposal_network = proposal_network
         self.prior_network = prior_network
         self.generative_network = generative_network
+        self.sampler_network = sampler_network
+        self.one_hot_max_sizes = one_hot_max_sizes
         self.sigma_mu = sigma_mu
         self.sigma_sigma = sigma_sigma
 
@@ -170,3 +172,9 @@ class VAEAC(Module):
             rec_params = self.generative_network(latent)
             reconstructions_params.append(rec_params.unsqueeze(1))
         return torch.cat(reconstructions_params, 1)
+
+    def generate_probable_sample(self):
+        # TODO: Implement this method, 
+        # which takes a state and a mask (as np.ndarray)
+        # and returns a state feature vector s.
+        pass
