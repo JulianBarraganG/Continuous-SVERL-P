@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from torchvision.datasets.folder import default_loader
 from torchvision.transforms import CenterCrop, Compose, Normalize, ToTensor
 
-from mask_generators import ImageMaskGenerator
+from .mask_generators import ImageMaskGenerator
 
 
 def compute_normalization(data, one_hot_max_sizes):
@@ -29,7 +29,7 @@ def compute_normalization(data, one_hot_max_sizes):
         if size >= 2:
             continue
         v = data[:, i]
-        v = v[1 - torch.isnan(v)]
+        v = v[~torch.isnan(v)]
         vmin, vmax = v.min(), v.max()
         vmean = v.mean()
         vstd = v.std()

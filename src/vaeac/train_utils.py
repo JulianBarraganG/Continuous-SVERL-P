@@ -1,5 +1,15 @@
 import torch
 from tqdm import tqdm
+from dataclasses import dataclass
+
+@dataclass
+class TrainingArgs:
+    epochs: int = 10
+    validation_ratio: float = 0.2
+    validations_per_epoch: int = 1
+    validation_iwae_num_samples: int = 25
+    num_imputations: int = 5
+    use_last_checkpoint: bool = False
 
 
 def extend_batch(batch, dataloader, batch_size):

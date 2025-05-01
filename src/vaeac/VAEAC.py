@@ -4,7 +4,7 @@ import torch
 from torch.distributions import kl_divergence
 from torch.nn import Module
 
-from prob_utils import normal_parse_params
+from .prob_utils import normal_parse_params
 
 
 class VAEAC(Module):
@@ -51,7 +51,7 @@ class VAEAC(Module):
         Copy batch of objects and zero unobserved features.
         """
         observed = torch.tensor(batch)
-        observed[mask.byte()] = 0
+        observed[mask.bool()] = 0
         return observed
 
     def make_latent_distributions(self, batch, mask, no_proposal=False):

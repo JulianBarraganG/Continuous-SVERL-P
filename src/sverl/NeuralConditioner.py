@@ -82,7 +82,7 @@ class NC(nn.Module):
             x_a = x_a.unsqueeze(0)
             a = a.unsqueeze(0)
             r = r.unsqueeze(0)
-            pred = self(x_a, a, r, z).mean(0).numpy()
+            pred = self(x_a, a, r).mean(0).numpy()
 
         for i in range(len(pred)):
             if mask[i] == 1: 

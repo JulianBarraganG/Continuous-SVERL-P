@@ -144,7 +144,7 @@ class GaussianCategoricalLoss(Module):
 
                 # compute the mask of the values
                 # which we consider in the log probability
-                mask_col = mask_col * (1 - nan_mask).float()
+                mask_col = mask_col * (~nan_mask).float()
 
                 col_log_prob = distr.log_prob(gt_col_nansafe) * mask_col
             else:

@@ -1,9 +1,9 @@
 from torch import nn
 from torch.optim import Adam
 
-from mask_generators import MCARGenerator
-from nn_utils import ResBlock, MemoryLayer, SkipConnection
-from prob_utils import CategoricalToOneHotLayer, GaussianCategoricalLoss, \
+from .mask_generators import MCARGenerator
+from .nn_utils import ResBlock, MemoryLayer, SkipConnection
+from .prob_utils import CategoricalToOneHotLayer, GaussianCategoricalLoss, \
                        GaussianCategoricalSampler, SetGaussianSigmasToOne
 
 

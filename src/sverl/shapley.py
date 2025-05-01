@@ -1,13 +1,7 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
 from math import factorial
-from utils import get_all_group_subsets, get_r
-
-import cma
-
 import numpy as np
+
+from .utils import get_all_group_subsets, get_r
 
 #Basically the local sverl. Uses the neural conditioner to predict missing features in the first step, and then has full observability afterwards. 
 #Very uninteresting to be honest, since the cart pole can only go left 0, or right 1. And even though the model gives different values, the decision

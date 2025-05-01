@@ -1,15 +1,15 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm, trange
+from tqdm import trange
 from os.path import exists, join
 from os import makedirs
 import pickle
-import time
-from NeuralConditioner import NC, Discriminator, train_nc
-from RandomSampler import RandomSampler
-import numpy as np
+
+from .NeuralConditioner import NC, Discriminator, train_nc
+from .RandomSampler import RandomSampler
+from vaeac.VAEAC_train import get_vaeac
+from vaeac.train_utils import TrainingArgs
 
 class StateFeatureDataset(Dataset):
     def __init__(self, data, batch_size=32, shuffle=False):
@@ -85,7 +85,7 @@ def get_all_subsets(fixed_features, list_length):
 
 def get_r(k, masked_group):
     """
-    gets the permutations of the groups, where masked group is fixed to 0.
+    Gets the permutations of the groups, where masked group is fixed to 0.
     
     Parameters
     ----------
@@ -101,7 +101,7 @@ def get_r(k, masked_group):
 
 def get_all_group_subsets(g, masked_group):
     """
-    gets all permutations of subsets, with masked group fixed to 0.
+    Gets all permutations of subsets, with masked group fixed to 0.
     Parameters
     ----------
         g (list):
@@ -135,7 +135,7 @@ def get_all_group_subsets(g, masked_group):
 
 def get_trajectory(policy, env, time_horizon = 10**3): 
     """
-    get a trajectory of the agent, given a policy and an environment. 
+    Get a trajectory of the agent, given a policy and an environment. 
     
     Parameters
     ----------
@@ -166,17 +166,33 @@ def get_trajectory(policy, env, time_horizon = 10**3):
         
     return np.array(trajectory_features)
 
+
+
+def evaluate_policy(no_episodes, env, policy): 
+    rewards = []
+    for _ in trange(no_episodes):
+        r = 0
+        state = env.reset()[0]
+        while True:  # environment sets "truncated" to true after 500 steps 
+                state, reward, terminated, truncated, _ = env.step( policy(state) ) #  take a  action
+                r += reward  # accumulate reward
+                if terminated or truncated:
+                    break
+        env.close()
+        rewards.append(r)
+    return np.array(rewards)  # return the cumulated reward
+
 def save_trajectory(trajectories, filename, delimiter=','):
     """
-    save the trajectory data to a csv-file.
+    Save the trajectory data to a csv-file.
 
     Parameters
     ----------
     trajectories: numpy array
-        the trajectories to save,
-        usually shape (t, d)
+    the trajectories to save,
+    usually shape (t, d)
     filename: str
-        note that 'filename' should not include document type i.e. '.csv'
+    note that 'filename' should not include document type i.e. '.csv'
     """
 
     # if the directory does not exist, create it
@@ -194,21 +210,6 @@ def save_trajectory(trajectories, filename, delimiter=','):
     file_path = join('data', save_path)
     np.savetxt(file_path, trajectories, delimiter=delimiter)
 
-
-def evaluate_policy(no_episodes, env, policy): 
-    rewards = []
-    for _ in trange(no_episodes):
-        r = 0
-        state = env.reset()[0]
-        while True:  # environment sets "truncated" to true after 500 steps 
-                state, reward, terminated, truncated, _ = env.step( policy(state) ) #  take a  action
-                r += reward  # accumulate reward
-                if terminated or truncated:
-                    break
-        env.close()
-        rewards.append(r)
-    return np.array(rewards)  # return the cumulated reward
-
 def get_agent_and_trajectory(policy,
                              env,
                              model_filepath, 
@@ -218,7 +219,7 @@ def get_agent_and_trajectory(policy,
     """
     Checks if the model and trajectory files exist, otherwise trains and saves them.
 
-    parameters:
+    Parameters
     ----------
     policy: policy to be trained
     model_filepath: path to save the trained policy
@@ -228,7 +229,7 @@ def get_agent_and_trajectory(policy,
     env: environment to train the policy
     gen_and_save_trajectory: boolean, if true, generate and save the trajectory
 
-    returns:
+    Returns
     -------
     policy: trained policy if gen_and_save_trajectory is false
     policy, trajectory: trained policy and trajectory if gen_and_save_trajectory is true
@@ -268,19 +269,19 @@ def get_agent_and_trajectory(policy,
 
     return policy, None
 
-def get_neural_conditioner(filepath, input_dim, latent_dim, dataloader):
+def load_neural_conditioner(filepath, input_dim=None, latent_dim=None, dataloader=None):
     """
     Loads the neural conditioner from the given filepath, or creates and saves it,
     if it doesn't exist.
 
-    parameters:
+    Parameters
     ----------
     filepath: path to the neural conditioner model
     input_dim: input dimension of the neural conditioner
     latent_dim: latent dimension of the neural conditioner
     dataloader: dataloader for training the neural conditioner
 
-    returns:
+    Returns
     -------
     nc: loaded neural conditioner model
     """
@@ -291,7 +292,7 @@ def get_neural_conditioner(filepath, input_dim, latent_dim, dataloader):
         nc = NC(input_dim, latent_dim)
         discriminator = Discriminator(input_dim)
         print("Training Neural Conditioner...")
-        train_nc(nc, discriminator, dataloader, epochs=100)
+        train_nc(nc, discriminator, dataloader, epochs=10)
         pickle.dump(nc, open(filepath, "wb")) #saving the neural conditioner
         print(f"Neural Conditioner saved at: {filepath}")
         return nc
@@ -300,17 +301,17 @@ def get_neural_conditioner(filepath, input_dim, latent_dim, dataloader):
         nc = pickle.load(open(filepath, "rb"))
         return nc
     
-def get_random_sampler(filepath, trajectory):
+def load_random_sampler(filepath, trajectory=None):
     """
     Loads the random sampler from the given filepath, or creates it and saves it
     if it doesn't exist.
 
-    parameters:
+    Parameters
     ----------
     filepath: path to the neural conditioner model
     trajectory: trajectory to be used for creating the random sampler
 
-    returns:
+    Returns
     -------
     nc: loaded random sampling model
     """
@@ -328,3 +329,37 @@ def get_random_sampler(filepath, trajectory):
         rs = pickle.load(open(filepath, "rb"))
         return rs
     
+def load_vaeac(savepath: str, 
+              data: str | np.ndarray | None = None,
+              args: TrainingArgs | None = None,
+              one_hot_max_sizes: list | None = None):
+    """
+    Given a specification on state feature data types, and trajectory data file path,
+    this function will train a VAEAC model on the data, and return the VAEAC model.
+
+    Parameters
+    ----------
+    savepath : str
+    data : str | np.ndarray | None
+    args : TrainArgs | None
+    one_hot_max_sizes : list | None
+
+    Returns
+    -------
+    VAEAC : VAEAC
+        The trained VAEAC model as a PyTorch module.
+    """
+    if not exists("imputation_models"):
+        makedirs("imputation_models")
+
+    if not exists(savepath):
+        print("Training VAEAC...")
+        vaeac = get_vaeac(args, one_hot_max_sizes, data)
+        pickle.dump(vaeac, open(savepath, "wb"))
+        print(f"VAEAC saved at: {savepath}")
+        return vaeac
+    else:
+        print("Loading VAEAC...")
+        vaeac = pickle.load(open(savepath, "rb"))
+        return vaeac
+

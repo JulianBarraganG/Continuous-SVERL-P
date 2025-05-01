@@ -1,5 +1,8 @@
 papers/
 *.pdf
 */logs/
-*/*/data/
-*/*/models/
+src/data/
+src/models/
+src/imputation_models/
+*__pycache__/
+*outcmaes/

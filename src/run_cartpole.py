@@ -1,15 +1,16 @@
 import gymnasium as gym  # Defines RL environments
 import numpy as np  # For numerical operations
-import shapley
-
-import RandomSampler
-import pickle
-from utils import StateFeatureDataset, get_agent_and_trajectory, get_neural_conditioner, get_random_sampler
-from cartpole_agent import PolicyCartpole, train_cartpole_agent
 from os.path import join, exists
-from os import makedirs
-from tqdm import tqdm, trange
+from tqdm import trange
 from torch.utils.data import Dataset, DataLoader
+
+import sverl.shapley as shapley
+from sverl.utils import StateFeatureDataset, get_agent_and_trajectory, load_neural_conditioner, load_random_sampler, load_vaeac
+from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
+
+import vaeac.VAEAC as VAEAC
+from vaeac.VAEAC_train import get_vaeac
+from vaeac.train_utils import TrainingArgs
 
 env = gym.make('CartPole-v1')
 state_space_dimension = env.observation_space.shape[0]
@@ -19,11 +20,15 @@ action_space_dimension = env.action_space.n - 1
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 model_filepath = join("models", "cartpole_policy.pkl")
 trajectory_filename = "cartpole_trajectory"
-rs_filepath = join("imputation_models","cartpole_rs.pkl")
-nc_filepath = join("imputation_models","cartpole_nc.pkl")
+rs_filepath = join("imputation_models", "cartpole_rs.pkl")
+nc_filepath = join("imputation_models", "cartpole_nc.pkl")
+vaeac_filepath = join("imputation_models", "cartpole_vaeac.pkl")
 
 # Check if the model and trajectory files exist, otherwise train and save them
-feature_imputation_model_missing = True # Should check for feature imputers
+feature_imputation_model_missing = not(exists(rs_filepath) 
+                                       and exists(nc_filepath) 
+                                       and exists(vaeac_filepath))
+
 # We assume trajectory file is csv
 policy, trajectory = get_agent_and_trajectory(policy,
                                               env,
@@ -39,12 +44,13 @@ if feature_imputation_model_missing:
     input_dim = 4  # size of the data
     latent_dim = 64  # Size of the latent space
 
-    nc = get_neural_conditioner(nc_filepath, input_dim, latent_dim, dataloader)
-    rs = get_random_sampler(rs_filepath, trajectory)
+    nc = load_neural_conditioner(nc_filepath, input_dim=input_dim, latent_dim=latent_dim, dataloader=dataloader)
+    rs = load_random_sampler(rs_filepath, trajectory=trajectory)
+    vaeac = load_vaeac(vaeac_filepath, data=trajectory, args=TrainingArgs(), one_hot_max_sizes=[0,0,0,0])
 else: 
-    nc = get_neural_conditioner(nc_filepath, None, None, None)
-    rs = get_random_sampler(rs_filepath, None)
-
+    nc = load_neural_conditioner(nc_filepath)
+    rs = load_random_sampler(rs_filepath)
+    vaeac = load_vaeac(vaeac_filepath)
 
 
 #The i is the seed. This is the only way I know how to set the starting position 
