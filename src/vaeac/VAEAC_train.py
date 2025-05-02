@@ -58,7 +58,6 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
     num_workers = 0
 
     # design all necessary networks and learning parameters for the dataset
-    networks = get_imputation_networks(one_hot_max_sizes)
 
     # build VAEAC on top of returned network, optimizer on top of VAEAC,
     # extract optimization parameters and mask generator
@@ -67,7 +66,8 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
         networks['proposal_network'],
         networks['prior_network'],
         networks['generative_network'],
-        networks['sampler']
+        networks['sampler'], 
+        one_hot_max_sizes
     )
     if use_cuda:
         model = model.cuda()

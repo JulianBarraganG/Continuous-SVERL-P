@@ -50,6 +50,7 @@ else:
     rs = load_random_sampler(rs_filepath)
     vaeac = load_vaeac(vaeac_filepath)
 
+state = env.reset(seed=0)[0]  # Forget about previous episode
 
 #The i is the seed. This is the only way I know how to set the starting position 
 #We are doing 100 different seeds, and averaging the results.
@@ -149,4 +150,36 @@ value_empty_set /= NUM_ROUNDS
 
 print("Shapley value of cart and angular position: ", shapley_pos)
 print("Shapley value of cart and angular velocity: ", shapley_vel)
+print("Value of empty set: ", value_empty_set)
+
+
+
+
+#The i is the seed. This is the only way I know how to set the starting position 
+#We are doing 100 different seeds, and averaging the results.
+NUM_ROUNDS = 10
+
+shapley_cart_pos = 0
+shapley_cart_vel = 0
+shapley_pole_angle = 0
+shapley_pole_vel = 0
+value_empty_set = 0
+G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
+print("Calculating Shapley values based on vaeac...")
+for i in trange(NUM_ROUNDS): 
+    value_empty_set += shapley.global_sverl_value_function(policy, i, vaeac.generate_probable_sample, np.zeros(4), env)
+    shapley_cart_pos += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 0, i, env)
+    shapley_cart_vel += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 1, i, env)
+    shapley_pole_angle += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 2, i, env)
+    shapley_pole_vel += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 3, i, env)
+shapley_cart_pos /= NUM_ROUNDS
+shapley_cart_vel /= NUM_ROUNDS
+shapley_pole_angle /= NUM_ROUNDS
+shapley_pole_vel /= NUM_ROUNDS
+value_empty_set /= NUM_ROUNDS
+
+print("Shapley value of Cart Position: ", shapley_cart_pos)
+print("Shapley value of Cart Velocity: ", shapley_cart_vel)
+print("Shapley value of Pole Angle: ", shapley_pole_angle)
+print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
 print("Value of empty set: ", value_empty_set)

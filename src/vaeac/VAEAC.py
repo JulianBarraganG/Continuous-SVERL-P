@@ -52,7 +52,7 @@ class VAEAC(Module):
         """
         Copy batch of objects and zero unobserved features.
         """
-        observed = torch.tensor(batch)
+        observed = batch.detach().clone()
         observed[mask.bool()] = 0
         return observed
 
@@ -173,8 +173,26 @@ class VAEAC(Module):
             reconstructions_params.append(rec_params.unsqueeze(1))
         return torch.cat(reconstructions_params, 1)
 
-    def generate_probable_sample(self):
+    def generate_probable_sample(self, state, mask):
         # TODO: Implement this method, 
         # which takes a state and a mask (as np.ndarray)
         # and returns a state feature vector s.
-        pass
+        mask = [1 - x for x in mask]
+        with torch.no_grad():            
+            state = torch.tensor(state).float().unsqueeze(0)
+            mask = torch.tensor(mask).float().unsqueeze(0)
+            observed = self.make_observed(state, mask)            
+
+            prior_params = self.prior_network(torch.cat([observed, mask],1))
+            prior = normal_parse_params(prior_params, 1e-3)
+            latent = prior.rsample()
+            sample_params = self.generative_network(latent)
+            sample = self.sampler_network(sample_params)
+            sample = sample.squeeze(0).numpy()
+            mask = mask.squeeze(0).numpy()
+            state = state.squeeze(0).numpy()
+        mask = [1 - x for x in mask]
+        for i in range(len(sample)):
+            if mask[i] == 1: 
+                sample[i] = state[i]
+        return sample   
