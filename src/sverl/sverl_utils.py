@@ -147,7 +147,7 @@ def get_agent_and_trajectory(policy,
         makedirs("models")
     if not exists(model_filepath):
         print("training agent...")
-        policy = training_function(policy, env, ftarget=-9999.9) # train and report steps until convergence
+        policy = training_function(policy, env) # train and report steps until convergence
 
         # check that policy learned
         print("evaluating policy...")

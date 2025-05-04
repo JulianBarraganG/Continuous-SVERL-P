@@ -13,17 +13,20 @@ class QNetwork(nn.Module):
         
         Parameters
         -------------
-            state_size (int): 
-                Size of the state space.
-            action_size (int): 
-                Size of the action space.
-            hidden_size (int): 
-                Number of neurons in the hidden layer.
-            bias (bool): 
-                Whether to include bias in the linear layers.
+        state_size: int 
+            Size of the state space.
+        action_size : int 
+            Size of the action space.
+        hidden_size : int 
+            Number of neurons in the hidden layer.
+        bias : bool 
+            Whether to include bias in the linear layers.
         """
         super(QNetwork, self).__init__()
         self.state_size = state_size
+        self.action_size = action_size
+        self.hidden_size = hidden_size
+        self.bias = bias
         self.fc1 = nn.Linear(state_size, hidden_size, bias)  
         self.fc2 = nn.Linear(hidden_size, hidden_size, bias)  
         self.output_layer = nn.Linear(hidden_size + state_size, action_size, bias)
@@ -34,7 +37,7 @@ class QNetwork(nn.Module):
         
         Parameters
         -------------
-            x_input (torch.Tensor): 
+            x_input : torch.Tensor 
                 Input state tensor.
         Returns
         -------------
@@ -52,7 +55,7 @@ class QNetwork(nn.Module):
         
         Parameters
         -------------
-            x_input (numpy.ndarray): 
+            x_input : numpy.ndarray 
                 Input state array.
         Returns
         -------------
@@ -76,7 +79,7 @@ class Memory():
         
         Parameters
         -------------
-            max_size (int): 
+            max_size : int 
                 Maximum size of the memory buffer.
         """
         self.buffer = deque(maxlen=max_size)
@@ -87,7 +90,7 @@ class Memory():
         
         Parameters
         -------------
-            experience (tuple): 
+            experience : tuple 
                 Experience tuple (state, action, reward, next_state).
         """
         self.buffer.append(experience)
@@ -98,7 +101,7 @@ class Memory():
         
         Parameters
         -------------
-            batch_size (int):
+            batch_size : int
                 Number of experiences to sample.
         Returns
         -------------
@@ -110,44 +113,53 @@ class Memory():
         return [self.buffer[ii] for ii in idx]
     
 
-def train(env, train_episodes = 400, hidden_size = 64, gamma = 0.99, learning_rate = 0.001, tau = .01, explore_start = 1.0, explore_stop = 0.0001, decay_rate = 0.05, memory_size = 10000, batch_size = 128):
+def train_Qnetwork(mainQN, 
+                   env,
+                   train_episodes = 400, 
+                   gamma = 0.99, 
+                   learning_rate = 0.001, 
+                   tau = .01, 
+                   explore_start = 1.0, 
+                   explore_stop = 0.0001, 
+                   decay_rate = 0.05, 
+                   memory_size = 10000, 
+                   batch_size = 128):
     """
     Train a Q-learning agent using experience replay and delayed target network soft updates.
     
     Parameters
     -------------
-        env (gym.Env):
-            Environment to train the agent on. We use it on the lunar lander 
-        train_episodes (int):
-            Number of training episodes.
-        hidden_size (int):
-            Number of neurons in the hidden layer of the Q-networks
-        gamma (float):
-            Discount factor for future rewards.
-        learning_rate (float):
-            Learning rate for the optimizer.
-        tau (float):
-            Soft update parameter for the target network.
-        explore_start (float):
-            Initial exploration probability.
-        explore_stop (float):
-            Final exploration probability.
-        decay_rate (float):
-            Decay rate for exploration probability.
-        memory_size (int):
-            Maximum size of the experience replay memory.
-        batch_size (int):
-            Size of the mini-batch for training.
-        
-        Returns
-        -------------
-            targetQN (QNetwork): 
-                Target Q-network after training. This network is used for action selection, and should be 
-                more stable than the main Q-network.
+    env :  gym.Env
+        Environment to train the agent on. We use it on the lunar lander 
+    train_episodes : int
+        Number of training episodes.
+    hidden_size : int
+        Number of neurons in the hidden layer of the Q-networks
+    gamma : float
+        Discount factor for future rewards.
+    learning_rate : float
+        Learning rate for the optimizer.
+    tau : float
+        Soft update parameter for the target network.
+    explore_start : float
+        Initial exploration probability.
+    explore_stop : float
+        Final exploration probability.
+    decay_rate : float
+        Decay rate for exploration probability.
+    memory_size : int
+        Maximum size of the experience replay memory.
+    batch_size : int
+        Size of the mini-batch for training.
+    
+    Returns
+    -------------
+        targetQN (QNetwork): 
+            Target Q-network after training. This network is used for action selection, and should be 
+            more stable than the main Q-network.
     """
     pretrain_length = batch_size
-    mainQN = QNetwork(hidden_size=hidden_size)
-    targetQN = QNetwork(hidden_size=hidden_size)
+    targetQN = QNetwork(mainQN.state_size, mainQN.action_size, mainQN.hidden_size, mainQN.bias)
     state = env.reset()[0]
     action_size = env.action_space.n
     state_size = env.observation_space.shape[0]
