@@ -1,7 +1,7 @@
 from math import factorial
 import numpy as np
 
-from .utils import get_all_group_subsets, get_r
+from .group_utils import get_all_group_subsets, get_r
 
 #Basically the local sverl. Uses the neural conditioner to predict missing features in the first step, and then has full observability afterwards. 
 #Very uninteresting to be honest, since the cart pole can only go left 0, or right 1. And even though the model gives different values, the decision
@@ -10,9 +10,20 @@ from .utils import get_all_group_subsets, get_r
 #I haven't used this function much
 #ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
 def local_sverl_value_function(policy, initial_state, ms_ft_pred_fnc, mask, env):
-    ''''
-    'Evaluate the policy from a given state, using the believed state to make the initial decision'
-    '''
+    """
+    Evaluate the policy from a given state, using the believed state to make the initial decision
+    Parameters
+    ----------
+        policy : function
+        initial_state : numpy.ndarray
+        ms_ft_pred_fnc : function
+        mask : np.ndarray
+        env : gym.Env
+    Returns
+    -------
+        R : float
+            The cumulated reward
+    """
     R = 0
     
     print(initial_state)
@@ -41,9 +52,20 @@ def local_sverl_value_function(policy, initial_state, ms_ft_pred_fnc, mask, env)
 #In every step, it uses the neural conditioner to predict the missing features, and then uses the policy to decide what to do.
 #ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
 def global_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
-    ''''
-    'Evaluate the policy from a given state, using the believed state to make the initial decisino'
-    '''
+    """
+    Evaluate the policy with missing features, using the believed state to make the decision.
+    Parameters
+    ----------
+    policy : callable
+    seed : int
+    ms_ft_pred_fnc : callable
+    mask : np.ndarray
+    env : gym.Env
+    Returns
+    -------
+    R : float
+        The cumulated reward
+    """
     R = 0
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
@@ -66,17 +88,12 @@ def global_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
 
 #Takes a feature i, and a mask C. Gives the marginal gain of adding feature i to the mask C, via an evaluation function
 def marginal_gain(policy, ms_ft_prd_fnc,eval_function , features, C, seed, env): 
+    """
+    Calculates the marginal gain of adding feature i to the mask C, using the eval_function.
+    """
     C_i = np.copy(C)
     for i in features:
         C_i[i] = 1
-
-
-    """ if(np.sum(C) == 0): 
-        # v(Ø) = 0 for game theory, and for ML v(Ø) = expected prediction of model.
-        # We have yet to determine what v(Ø) is for SVERL, and for the general RL case.
-        V_C = 0
-    else: 
-        V_C = eval_with_missing_features(policy, seed, NC, C) """
 
     V_C = eval_function(policy, seed, ms_ft_prd_fnc, C, env)
 
@@ -87,14 +104,14 @@ def marginal_gain(policy, ms_ft_prd_fnc,eval_function , features, C, seed, env):
 
 #Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
 def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed, env):
-
+    """
+    Calculate the Shapley value for a feature using the marginal gain function and the get_all_subsets function.
+    """
     list_of_C = get_all_group_subsets(G, masked_group)
     sum = 0
 
     num_groups = len(G) #Number of groups #Number of subsets
     num_groups_per_C = get_r(num_groups, masked_group) #Number of groups in C per C (|T|_g in the paper)
-
-    
 
     for i, C in enumerate(list_of_C):
         sum += marginal_gain(policy, ms_ft_pred_fnc, eval_function, G[masked_group], C, seed, env)* ((factorial(np.sum(num_groups_per_C[i])))*factorial(num_groups - np.sum(num_groups_per_C[i]) - 1)) / factorial(num_groups)

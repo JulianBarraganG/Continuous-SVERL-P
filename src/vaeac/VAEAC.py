@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import torch
 from torch.distributions import kl_divergence
 from torch.nn import Module
@@ -8,33 +9,48 @@ from .prob_utils import normal_parse_params
 
 
 class VAEAC(Module):
-    """
-    Variational Autoencoder with Arbitrary Conditioning core model.
-    It is rather flexible, but have several assumptions:
-    + The batch of objects and the mask of unobserved features
-      have the same shape.
-    + The prior and proposal distributions in the latent space
-      are component-wise independent Gaussians.
-    The constructor takes
-    + Prior and proposal network which take as an input the concatenation
-      of the batch of objects and the mask of unobserved features
-      and return the parameters of Gaussians in the latent space.
-      The range of neural networks outputs should not be restricted.
-    + Generative network takes latent representation as an input
-      and returns the parameters of generative distribution
-      p_theta(x_b | z, x_{1 - b}, b), where b is the mask
-      of unobserved features. The information about x_{1 - b} and b
-      can be transmitted to generative network from prior network
-      through nn_utils.MemoryLayer. It is guaranteed that for every batch
-      prior network is always executed before generative network.
-    + Reconstruction log probability. rec_log_prob is a callable
-      which takes (groundtruth, distr_params, mask) as an input
-      and return vector of differentiable log probabilities
-      p_theta(x_b | z, x_{1 - b}, b) for each object of the batch.
-    + Sigma_mu and sigma_sigma are the coefficient of the regularization
-      in the hidden space. The default values correspond to a very weak,
-      almost disappearing regularization, which is suitable for all
-      experimental setups the model was tested on.
+    """Variational Autoencoder with Arbitrary Conditioning core model.
+
+    It is rather flexible, but has several assumptions:
+    - The batch of objects and the mask of unobserved features have the same shape.
+    - The prior and proposal distributions in the latent space are component-wise
+      independent Gaussians.
+
+    Parameters
+    ----------
+    prior_network : callable
+        Network that takes as input the concatenation of the batch of objects and
+        the mask of unobserved features, and returns the parameters of Gaussians
+        in the latent space for the prior distribution. The output range should
+        not be restricted.
+    proposal_network : callable
+        Network that takes as input the concatenation of the batch of objects and
+        the mask of unobserved features, and returns the parameters of Gaussians
+        in the latent space for the proposal distribution. The output range should
+        not be restricted.
+    generative_network : callable
+        Network that takes latent representation as input and returns the parameters
+        of generative distribution p_theta(x_b | z, x_{1 - b}, b), where b is the mask
+        of unobserved features. The information about x_{1 - b} and b can be transmitted
+        to generative network from prior network through nn_utils.MemoryLayer. It is
+        guaranteed that for every batch, prior network is always executed before
+        generative network.
+    rec_log_prob : callable
+        Reconstruction log probability function that takes (groundtruth, distr_params, mask)
+        as input and returns a vector of differentiable log probabilities
+        p_theta(x_b | z, x_{1 - b}, b) for each object in the batch.
+    sigma_mu : float, optional
+        Coefficient of the regularization in the hidden space for the mean.
+        Default corresponds to very weak regularization.
+    sigma_sigma : float, optional
+        Coefficient of the regularization in the hidden space for the standard deviation.
+        Default corresponds to very weak regularization.
+
+    Notes
+    -----
+    The default values for sigma_mu and sigma_sigma correspond to a very weak,
+    almost disappearing regularization, which is suitable for all experimental
+    setups the model was tested on.
     """
     def __init__(self, rec_log_prob, proposal_network, prior_network,
                  generative_network, sampler_network, one_hot_max_sizes, sigma_mu=1e4, sigma_sigma=1e-4):
@@ -174,16 +190,37 @@ class VAEAC(Module):
         return torch.cat(reconstructions_params, 1)
 
     def generate_probable_sample(self, state, mask):
-        # TODO: Implement this method, 
-        # which takes a state and a mask (as np.ndarray)
-        # and returns a state feature vector s.
+        """
+        Given a state and a mask, generate a probable smaple.
+        This resembles class of methods from imputation networks,
+        which are required for calculating Shapley values via our SVERL package.
+        Parameters
+        ----------
+        state : array-like
+            The observed state feature vector.
+        mask : array-like
+            Boolean mask indicating which features are observed (1) or unobserved (0).
+        Returns
+        -------
+        sample : array-like
+            Observed features remain, unobserved features sampled on-manifold by VAEAC.
+        """
         mask = [1 - x for x in mask]
+        mask = torch.tensor(mask, device='cpu').float().unsqueeze(0)
+
+        if isinstance(state, np.ndarray):
+            state = torch.tensor(state, device='cpu').float().unsqueeze(0)
+        if state.get_device() != -1:
+            print("Device for state is not CPU")
+            state = state.cpu()
+        if mask.get_device() != -1:
+            print("Device for mask is not CPU")
+            mask = mask.cpu()
+
         with torch.no_grad():            
-            state = torch.tensor(state).float().unsqueeze(0)
-            mask = torch.tensor(mask).float().unsqueeze(0)
             observed = self.make_observed(state, mask)            
 
-            prior_params = self.prior_network(torch.cat([observed, mask],1))
+            prior_params = self.prior_network(torch.cat([observed, mask],1).cpu())
             prior = normal_parse_params(prior_params, 1e-3)
             latent = prior.rsample()
             sample_params = self.generative_network(latent)
@@ -195,4 +232,4 @@ class VAEAC(Module):
         for i in range(len(sample)):
             if mask[i] == 1: 
                 sample[i] = state[i]
-        return sample   
+        return sample

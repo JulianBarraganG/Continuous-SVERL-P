@@ -2,7 +2,7 @@ from torch import nn
 from torch.optim import Adam
 
 from .mask_generators import MCARGenerator
-from .nn_utils import ResBlock, MemoryLayer, SkipConnection
+from .nn_utils import MemoryLayer, SkipConnection
 from .prob_utils import CategoricalToOneHotLayer, GaussianCategoricalLoss, \
                        GaussianCategoricalSampler, SetGaussianSigmasToOne
 

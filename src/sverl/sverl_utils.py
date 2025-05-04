@@ -4,12 +4,13 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import trange
 from os.path import exists, join
 from os import makedirs
+import gym
 import pickle
 
 from .NeuralConditioner import NC, Discriminator, train_nc
 from .RandomSampler import RandomSampler
-from vaeac.VAEAC_train import get_vaeac
-from vaeac.train_utils import TrainingArgs
+from .shapley import shapley_value, global_sverl_value_function
+from vaeac.train_utils import TrainingArgs, get_vaeac
 
 class StateFeatureDataset(Dataset):
     def __init__(self, data, batch_size=32, shuffle=False):
@@ -39,99 +40,6 @@ class StateFeatureDataset(Dataset):
         Returns the item at the specified index.
         """
         return self.data[idx]
-    
-    
-    
-#gets all subsets of masks when one feature is fixed to 0.
-#basically all c \in f/i 
-
-def get_all_subsets(fixed_features, list_length):
-    """
-    generate all binary lists of given length with certain positions fixed to 0.
-    
-    Parameters
-    ----------
-        fixed_features (list): 
-            list of indices that must be 0 in all variations
-        list_length (int): 
-            total length of the binary lists to generate
-        
-    Returns
-    -------
-        variations (list):
-            list of all possible binary lists with the specified features fixed to 0
-    """
-    variations = []
-    
-    # calculate how many bits we need to vary (total length minus fixed positions)
-    variable_positions = [pos for pos in range(list_length) if pos not in fixed_features]
-    num_variable_bits = len(variable_positions)
-    
-    # generate all possible combinations for the variable bits
-    for num in range(2 ** num_variable_bits):
-        binary = [0] * list_length
-        
-        # fill in the variable positions
-        for bit_pos in range(num_variable_bits):
-            # get the current variable position in the original list
-            original_pos = variable_positions[bit_pos]
-            # get the bit value (0 or 1)
-            bit_value = (num >> (num_variable_bits - 1 - bit_pos)) & 1
-            binary[original_pos] = bit_value
-            
-        variations.append(binary)
-    
-    return variations
-
-def get_r(k, masked_group):
-    """
-    Gets the permutations of the groups, where masked group is fixed to 0.
-    
-    Parameters
-    ----------
-        k (int): 
-            number of groups
-        masked_group (int): 
-            the group that is fixed to 0
-    Returns
-    -------
-            get_all_subsets which treats groups as features
-    """
-    return get_all_subsets([masked_group], k)
-
-def get_all_group_subsets(g, masked_group):
-    """
-    Gets all permutations of subsets, with masked group fixed to 0.
-    Parameters
-    ----------
-        g (list):
-            the groups
-        masked_group (int):
-            the group that is fixed to 0
-    Returns
-    -------
-        permutations (numpy.ndarray):             
-                all permutations of the groups, with masked group fixed to 0.   
-    """
-
-    # first index = group & second index = feature index
-    n = sum(len(sublist) for sublist in g) # number of features
-    k = len(g) # number of groups
-    num_perms = 2**(k-1) # number of permutations / len(r)
-
-
-    r = get_r(k, masked_group)
-
-    permutations = np.ones((num_perms, n), dtype=np.int64)  # initialize the permutations array
-    for l, rnoget in enumerate(r):
-        p_i = np.ones(n)
-        for i in range(k):
-            # loop over every j feature index in the i-th group.
-            for j in g[i]: 
-                p_i[j] = rnoget[i]
-        permutations[l] = p_i
-    return permutations
-
 
 def get_trajectory(policy, env, time_horizon = 10**3): 
     """
@@ -362,4 +270,64 @@ def load_vaeac(savepath: str,
         print("Loading VAEAC...")
         vaeac = pickle.load(open(savepath, "rb"))
         return vaeac
+
+def get_sverl_p(policy,
+                       env: gym.Env,
+                       feature_imputation_fnc: callable,
+                       G: list | None = None,
+                       num_rounds: int = 10,
+                       starting_state: np.ndarray | None = None,
+                       characteristic_fnc: callable = global_sverl_value_function):
+    """
+    Calculate the SVERL-P for the given policy and environment.
+    groupShapley can be calculated, by specifying the groups in G.
+    If G is None, then individual Shapley values are calculated.
+    Parameters
+    ----------
+    policy : PolicyClass
+        PolicyClass to indicate, that the policy is a class.
+    env : gym.Env
+    feature_imputation_fnc : callable
+    G : list | None
+        Groups of features. If None, then individual Shapley values are calculated.
+    num_rounds : int
+    starting_state : np.ndarray | None
+        For local SVERL-P.
+    Returns
+    -------
+    shapley_values : numpy.ndarray
+        SVERL-P values for each (group of) feature(s).
+    value_empty_set : float
+
+    TODO: Can't currently calculate local SVERL-P.
+    """
+
+    num_features = env.observation_space.shape[0]
+    if G is None: # No grouping
+        G = [[i] for i in range(num_features)]
+    value_empty_set_sum = 0
+    shapley_values_sum = np.zeros(num_features)
+    for i in trange(num_rounds): 
+        value_empty_set_sum += characteristic_fnc(policy, i, feature_imputation_fnc, np.zeros(4), env)
+        for g in range(num_features):
+            shapley_values_sum[g] += shapley_value(policy, feature_imputation_fnc, characteristic_fnc, G, g, i, env)
+
+    shapley_values = shapley_values_sum / num_rounds
+    value_empty_set = value_empty_set_sum / num_rounds
+
+    return shapley_values, value_empty_set
+
+def report_sverl_p(shap_vls: list,
+                    vl_empty_set: list,
+                    state_feature_names: list) -> None:
+    """
+    Report the Shapley values of the state features and the value of the empty set.
+    """
+    right_adjust = max([(len(f_name)) for f_name in state_feature_names]) + 1
+    empty_set_prefix = "Value of empty set"
+    prefix = "Shapley value of "
+
+    for i, shap_vl in enumerate(shap_vls):
+        print(f"Shapley value of {state_feature_names[i]:<{right_adjust}}: {shap_vl:>8.2f}")
+    print(f"{empty_set_prefix:<{right_adjust + len(prefix)}}: {vl_empty_set:>8.2f}")
 

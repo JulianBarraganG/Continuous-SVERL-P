@@ -1,14 +1,22 @@
 import gymnasium as gym  # Defines RL environments
-import numpy as np  # For numerical operations
 from os.path import join, exists
-from tqdm import trange
-from torch.utils.data import Dataset, DataLoader
 
-import sverl.shapley as shapley
-from sverl.utils import StateFeatureDataset, get_agent_and_trajectory, load_neural_conditioner, load_random_sampler, load_vaeac
+from sverl.sverl_utils import (
+        StateFeatureDataset,
+        get_agent_and_trajectory, 
+        load_neural_conditioner, 
+        load_random_sampler, 
+        load_vaeac, 
+        get_sverl_p,
+        report_sverl_p
+        )
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
-
 from vaeac.train_utils import TrainingArgs
+
+
+# Define the groups for group Shapley values
+state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
+pos_v_vel_G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
 
 env = gym.make('CartPole-v1')
 state_space_dimension = env.observation_space.shape[0]
@@ -50,136 +58,19 @@ else:
     rs = load_random_sampler(rs_filepath)
     vaeac = load_vaeac(vaeac_filepath)
 
-state = env.reset(seed=0)[0]  # Forget about previous episode
+# Move trained model to CPU
+vaeac.cpu()
 
 #The i is the seed. This is the only way I know how to set the starting position 
-#We are doing 100 different seeds, and averaging the results.
-NUM_ROUNDS = 10
 
-shapley_cart_pos = 0
-shapley_cart_vel = 0
-shapley_pole_angle = 0
-shapley_pole_vel = 0
-value_empty_set = 0
-G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values based on Random Sampler...")
-for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy, i, rs.pred, np.zeros(4), env)
-    shapley_cart_pos += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_cart_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
-    shapley_pole_angle += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 2, i, env)
-    shapley_pole_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 3, i, env)
-shapley_cart_pos /= NUM_ROUNDS
-shapley_cart_vel /= NUM_ROUNDS
-shapley_pole_angle /= NUM_ROUNDS
-shapley_pole_vel /= NUM_ROUNDS
-value_empty_set /= NUM_ROUNDS
+print("Calculating Shapley values based on RandomSampler...")
+rs_shapley_values, rs_value_empty_set = get_sverl_p(policy, env, rs.pred)
+report_sverl_p(rs_shapley_values, rs_value_empty_set, state_feature_names)
 
-print("Shapley value of Cart Position: ", shapley_cart_pos)
-print("Shapley value of Cart Velocity: ", shapley_cart_vel)
-print("Shapley value of Pole Angle: ", shapley_pole_angle)
-print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
-print("Value of empty set: ", value_empty_set)
+print("\nCalculating Shapley values based on NeuralConditioner...")
+nc_shapley_values, nc_value_empty_set = get_sverl_p(policy, env, nc.pred)
+report_sverl_p(nc_shapley_values, nc_value_empty_set, state_feature_names)
 
-
-
-NUM_ROUNDS = 10
-shapley_pos = 0
-shapley_vel = 0
-value_empty_set = 0
-G= [[0,2], [1,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values based on Random Sampler...")
-for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy, i, rs.pred, np.zeros(4), env)
-    shapley_pos += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_vel += shapley.shapley_value(policy, rs.pred, shapley.global_sverl_value_function, G, 1, i, env)
-shapley_pos /= NUM_ROUNDS
-shapley_vel /= NUM_ROUNDS
-value_empty_set /= NUM_ROUNDS
-
-print("Shapley value of cart an angular position: ", shapley_pos)
-print("Shapley value of cart and angular velocity: ", shapley_vel)
-print("Value of empty set: ", value_empty_set)
-
-
-
-#The i is the seed. This is the only way I know how to set the starting position 
-#We are doing 100 different seeds, and averaging the results.
-NUM_ROUNDS = 10
-
-shapley_cart_pos = 0
-shapley_cart_vel = 0
-shapley_pole_angle = 0
-shapley_pole_vel = 0
-value_empty_set = 0
-G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values based on NC...")
-for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy, i, nc.pred, np.zeros(4), env)
-    shapley_cart_pos += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_cart_vel += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
-    shapley_pole_angle += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 2, i, env)
-    shapley_pole_vel += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 3, i, env)
-shapley_cart_pos /= NUM_ROUNDS
-shapley_cart_vel /= NUM_ROUNDS
-shapley_pole_angle /= NUM_ROUNDS
-shapley_pole_vel /= NUM_ROUNDS
-value_empty_set /= NUM_ROUNDS
-
-print("Shapley value of Cart Position: ", shapley_cart_pos)
-print("Shapley value of Cart Velocity: ", shapley_cart_vel)
-print("Shapley value of Pole Angle: ", shapley_pole_angle)
-print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
-print("Value of empty set: ", value_empty_set)
-
-
-
-NUM_ROUNDS = 10
-shapley_pos = 0
-shapley_vel = 0
-value_empty_set = 0
-G= [[0,2], [1,3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values based on NC...")
-for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy, i, nc.pred, np.zeros(4), env)
-    shapley_pos += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_vel += shapley.shapley_value(policy, nc.pred, shapley.global_sverl_value_function, G, 1, i, env)
-shapley_pos /= NUM_ROUNDS
-shapley_vel /= NUM_ROUNDS
-value_empty_set /= NUM_ROUNDS
-
-print("Shapley value of cart and angular position: ", shapley_pos)
-print("Shapley value of cart and angular velocity: ", shapley_vel)
-print("Value of empty set: ", value_empty_set)
-
-
-
-
-#The i is the seed. This is the only way I know how to set the starting position 
-#We are doing 100 different seeds, and averaging the results.
-NUM_ROUNDS = 10
-
-shapley_cart_pos = 0
-shapley_cart_vel = 0
-shapley_pole_angle = 0
-shapley_pole_vel = 0
-value_empty_set = 0
-G= [[0], [1], [2], [3]] #The groups of features. In this case, we have 4 features, and each feature is its own group.
-print("Calculating Shapley values based on vaeac...")
-for i in trange(NUM_ROUNDS): 
-    value_empty_set += shapley.global_sverl_value_function(policy, i, vaeac.generate_probable_sample, np.zeros(4), env)
-    shapley_cart_pos += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 0, i, env)
-    shapley_cart_vel += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 1, i, env)
-    shapley_pole_angle += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 2, i, env)
-    shapley_pole_vel += shapley.shapley_value(policy, vaeac.generate_probable_sample, shapley.global_sverl_value_function, G, 3, i, env)
-shapley_cart_pos /= NUM_ROUNDS
-shapley_cart_vel /= NUM_ROUNDS
-shapley_pole_angle /= NUM_ROUNDS
-shapley_pole_vel /= NUM_ROUNDS
-value_empty_set /= NUM_ROUNDS
-
-print("Shapley value of Cart Position: ", shapley_cart_pos)
-print("Shapley value of Cart Velocity: ", shapley_cart_vel)
-print("Shapley value of Pole Angle: ", shapley_pole_angle)
-print("Shapley value of Pole Angular Velocity: ", shapley_pole_vel)
-print("Value of empty set: ", value_empty_set)
+print("\nCalculating Shapley values based on VAEAC...")
+vaeac_shapley_values, vaeac_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample)
+report_sverl_p(vaeac_shapley_values, vaeac_value_empty_set, state_feature_names)
