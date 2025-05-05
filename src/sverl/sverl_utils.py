@@ -337,7 +337,7 @@ def get_sverl_p(policy,
     shapley_values_sum = np.zeros(num_features)
     for i in trange(num_rounds): 
         value_empty_set_sum += characteristic_fnc(policy, i, feature_imputation_fnc, np.zeros(4), env)
-        for g in range(num_features):
+        for g in range(len(G)):
             shapley_values_sum[g] += shapley_value(policy, feature_imputation_fnc, characteristic_fnc, G, g, i, env)
 
     shapley_values = shapley_values_sum / num_rounds

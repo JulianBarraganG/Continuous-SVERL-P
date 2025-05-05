@@ -15,7 +15,7 @@ from vaeac.train_utils import TrainingArgs
 
 # Define the groups for group Shapley values
 state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
-pos_v_vel_G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
+G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
 
 env = gym.make('CartPole-v1')
 
