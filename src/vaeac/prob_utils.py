@@ -161,13 +161,13 @@ class GaussianCategoricalLoss(Module):
 
                 # copy groundtruth column, so that zeroing nans will not
                 # affect the original data
-                gt_col_nansafe = torch.tensor(groundtruth_col)
+                gt_col_nansafe = groundtruth_col.detach().clone()
                 nan_mask = torch.isnan(groundtruth_col)
                 gt_col_nansafe[nan_mask] = 0
 
                 # compute the mask of the values
                 # which we consider in the log probability
-                mask_col = mask_col * (1 - nan_mask).float()
+                mask_col = mask_col * (~nan_mask).float()
 
                 col_log_prob = distr.log_prob(gt_col_nansafe) * mask_col
                 col_log_prob = col_log_prob[:, None]
@@ -211,7 +211,7 @@ class CategoricalToOneHotLayer(Module):
             else:
                 # categorical feature
                 # replace NaNs with zeros
-                cat_idx = torch.tensor(input[:, i])
+                cat_idx = input[:, i].detach().clone()
                 nan_mask = torch.isnan(cat_idx)
                 cat_idx[nan_mask] = 0
 

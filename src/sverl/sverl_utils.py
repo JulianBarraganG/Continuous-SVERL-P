@@ -74,15 +74,37 @@ def get_trajectory(policy, env, time_horizon = 10**3):
         
     return np.array(trajectory_features)
 
+def evaluate_policy(no_episodes: int, env: gym.Env, policy: callable) -> np.ndarray: 
+    """
+    Evaluate the policy by running it in the environment for a number of episodes.
 
+    Parameters
+    ----------
+    no_episodes : int
+    env : gym.Env
+    policy : callable
 
-def evaluate_policy(no_episodes, env, policy): 
+    Returns
+    -------
+    rewards : numpy.ndarray
+        The rewards obtained by the policy in each episode.
+    """
     rewards = []
+    # Check and see what type (np.ndarray or torch.Tensor) policy expects the state to be
+    try:
+        dummy_state = env.reset()[0]
+        policy(torch.as_tensor(dummy_state))
+        expects_torch = True
+    except:
+        expects_torch = False
+
     for _ in trange(no_episodes):
         r = 0
         state = env.reset()[0]
+        state = torch.as_tensor(state) if expects_torch else state
         while True:  # environment sets "truncated" to true after 500 steps 
                 state, reward, terminated, truncated, _ = env.step( policy(state) ) #  take a  action
+                state = torch.as_tensor(state) if expects_torch else state
                 r += reward  # accumulate reward
                 if terminated or truncated:
                     break
@@ -118,7 +140,7 @@ def save_trajectory(trajectories, filename, delimiter=','):
     file_path = join('data', save_path)
     np.savetxt(file_path, trajectories, delimiter=delimiter)
 
-def get_agent_and_trajectory(policy,
+def get_policy_and_trajectory(policy,
                              env,
                              model_filepath, 
                              trajectory_filename,
@@ -126,21 +148,27 @@ def get_agent_and_trajectory(policy,
                              gen_and_save_trajectory=True):
     """
     Checks if the model and trajectory files exist, otherwise trains and saves them.
+    NB: that this function will always return the policy,
+    as in: $$\\pi : \\mathcal{S} \\rightarrow \\mathcal{A}$$
+    So often it will be the prediction method associated with the class,
+    representing the function approximation of the policy -- e.g. a Neural Network.
 
     Parameters
     ----------
-    policy: policy to be trained
-    model_filepath: path to save the trained policy
-    trajectory_filename: name of the trajectory file
-    trajectory_filepath: path to save the trajectory
-    training_function: function to train the policy
-    env: environment to train the policy
-    gen_and_save_trajectory: boolean, if true, generate and save the trajectory
+    policy : policy to be trained
+    model_filepath : path to save the trained policy
+    trajectory_filename : name of the trajectory file
+    trajectory_filepath : path to save the trajectory
+    training_function : function to train the policy
+        This function should return $\\pi$, 
+        i.e. function that takes a state and returns action
+    env : environment to train the policy
+    gen_and_save_trajectory : boolean, if true, generate and save the trajectory
 
     Returns
     -------
-    policy: trained policy if gen_and_save_trajectory is false
-    policy, trajectory: trained policy and trajectory if gen_and_save_trajectory is true
+    policy : trained policy if gen_and_save_trajectory is false
+    policy, trajectory : trained policy and trajectory if gen_and_save_trajectory is true
     """
 
     if not exists("models"):
@@ -272,20 +300,20 @@ def load_vaeac(savepath: str,
         return vaeac
 
 def get_sverl_p(policy,
-                       env: gym.Env,
-                       feature_imputation_fnc: callable,
-                       G: list | None = None,
-                       num_rounds: int = 10,
-                       starting_state: np.ndarray | None = None,
-                       characteristic_fnc: callable = global_sverl_value_function):
+                env: gym.Env,
+                feature_imputation_fnc: callable,
+                G: list | None = None,
+                num_rounds: int = 10,
+                starting_state: np.ndarray | None = None,
+                characteristic_fnc: callable = global_sverl_value_function):
     """
     Calculate the SVERL-P for the given policy and environment.
     groupShapley can be calculated, by specifying the groups in G.
     If G is None, then individual Shapley values are calculated.
     Parameters
     ----------
-    policy : PolicyClass
-        PolicyClass to indicate, that the policy is a class.
+    policy : callable 
+        $\\pi : \\mathcal{S} \\rightarrow \\mathcal{A}$
     env : gym.Env
     feature_imputation_fnc : callable
     G : list | None

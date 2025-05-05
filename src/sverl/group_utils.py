@@ -3,21 +3,21 @@ import numpy as np
 #gets all subsets of masks when one feature is fixed to 0.
 #basically all c \in f/i 
 
-def get_all_subsets(fixed_features, list_length):
+def get_all_subsets(fixed_features: list, list_length: int) -> list:
     """
-    generate all binary lists of given length with certain positions fixed to 0.
+    Generate all binary lists of given length with certain positions fixed to 0.
     
     Parameters
     ----------
-        fixed_features (list): 
-            list of indices that must be 0 in all variations
-        list_length (int): 
-            total length of the binary lists to generate
+    fixed_features : list
+        list of indices that must be 0 in all variations
+    list_length : int
+        total length of the binary lists to generate
         
     Returns
     -------
-        variations (list):
-            list of all possible binary lists with the specified features fixed to 0
+    variations : list
+        list of all possible binary lists with the specified features fixed to 0
     """
     variations = []
     
@@ -41,35 +41,37 @@ def get_all_subsets(fixed_features, list_length):
     
     return variations
 
-def get_r(k, masked_group):
+def get_r(k: int, masked_group: int) -> list:
     """
     Gets the permutations of the groups, where masked group is fixed to 0.
     
     Parameters
     ----------
-        k (int): 
-            number of groups
-        masked_group (int): 
-            the group that is fixed to 0
+    k : int 
+        number of groups
+    masked_group : int
+        the group that is fixed to 0
+
     Returns
     -------
-            get_all_subsets which treats groups as features
+        get_all_subsets which treats groups as features
     """
     return get_all_subsets([masked_group], k)
 
-def get_all_group_subsets(g, masked_group):
+def get_all_group_subsets(g: list, masked_group: int) -> np.ndarray:
     """
     Gets all permutations of subsets, with masked group fixed to 0.
+
     Parameters
     ----------
-        g (list):
-            the groups
-        masked_group (int):
-            the group that is fixed to 0
+    g : list
+    masked_group : int
+        the group that is fixed to 0
+
     Returns
     -------
-        permutations (numpy.ndarray):             
-                all permutations of the groups, with masked group fixed to 0.   
+    permutations : np.ndarray
+        all permutations of the groups, with masked group fixed to 0.   
     """
 
     # first index = group & second index = feature index
@@ -77,8 +79,11 @@ def get_all_group_subsets(g, masked_group):
     k = len(g) # number of groups
     num_perms = 2**(k-1) # number of permutations / len(r)
 
-
     r = get_r(k, masked_group)
+    # print(f"{len(r) = }")
+    # print(f"{num_perms = }")
+    # TODO: run_lunarlander.py gives num_perms != len(r)
+    # which gives an error on line "permutations[l] = p_i"
 
     permutations = np.ones((num_perms, n), dtype=np.int64)  # initialize the permutations array
     for l, rnoget in enumerate(r):

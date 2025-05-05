@@ -1,8 +1,8 @@
-from tqdm import tqdm, trange  # Progress bar
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from collections import deque
+from tqdm import trange
 
 import numpy as np
 
@@ -49,6 +49,7 @@ class QNetwork(nn.Module):
         x = torch.cat((x_input, x), dim=1)
         x = self.output_layer(x)
         return x
+    
     def predict(self, x_input): 
         """
         Predict the action based on the input state.
@@ -62,15 +63,16 @@ class QNetwork(nn.Module):
             int: 
                 Predicted action (index of the action with the highest Q-value).
         """
-        x_input = torch.from_numpy(x_input).unsqueeze(0)
-        x = F.tanh(self.fc1(x_input))
-        x = F.tanh(self.fc2(x))
-        x = torch.cat((x_input, x), dim=1)
-        x = self.output_layer(x)
-        x = torch.argmax(x).item()
+        x_input = torch.from_numpy(x_input).unsqueeze(0).float()
+        if torch.cuda.is_available():
+            x_input = x_input.cuda()
+        with torch.no_grad():
+            x = F.tanh(self.fc1(x_input))
+            x = F.tanh(self.fc2(x))
+            x = torch.cat((x_input, x), dim=1)
+            x = self.output_layer(x)
+            x = torch.argmax(x).item()
         return x
-
-    
 
 class Memory():
     def __init__(self, max_size = 1000):
@@ -154,12 +156,20 @@ def train_Qnetwork(mainQN,
     
     Returns
     -------------
-        targetQN (QNetwork): 
-            Target Q-network after training. This network is used for action selection, and should be 
-            more stable than the main Q-network.
+    Policy : callable
+        Trained policy function that takes a state and returns an action.
     """
+    # Check if CUDA is available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+    
     pretrain_length = batch_size
     targetQN = QNetwork(mainQN.state_size, mainQN.action_size, mainQN.hidden_size, mainQN.bias)
+    
+    # Move networks to device
+    mainQN = mainQN.to(device)
+    targetQN = targetQN.to(device)
+    
     state = env.reset()[0]
     action_size = env.action_space.n
     state_size = env.observation_space.shape[0]
@@ -186,7 +196,7 @@ def train_Qnetwork(mainQN,
             memory.add((state, action, reward, next_state))
             state = next_state
 
-    optimizer = torch.optim.AdamW(mainQN.parameters(), lr=learning_rate) # AdamW uses weight decay by default
+    optimizer = torch.optim.AdamW(mainQN.parameters(), lr=learning_rate)
     loss_fn = torch.nn.MSELoss()
 
     for ep in trange(train_episodes):
@@ -200,8 +210,9 @@ def train_Qnetwork(mainQN,
                 action = env.action_space.sample()
             else:
                 # Get action from Q-network
-                state_tensor = torch.from_numpy(np.resize(state, (1, state_size)).astype(np.float32))
-                Qs = mainQN(state_tensor)
+                state_tensor = torch.from_numpy(np.resize(state, (1, state_size)).astype(np.float32)).to(device)
+                with torch.no_grad():
+                    Qs = mainQN(state_tensor)
                 action = torch.argmax(Qs).item()
 
             # Take action, get new state and reward
@@ -224,17 +235,18 @@ def train_Qnetwork(mainQN,
             # Sample mini-batch from memory
             batch = memory.sample(batch_size)
             next_states_np = np.array([each[3] for each in batch], dtype=np.float32)
-            next_states = torch.as_tensor(next_states_np)  # as_tensor does not copy the data
-            rewards     = torch.as_tensor(np.array([each[2] for each in batch], dtype=np.float32)) 
-            states      = torch.as_tensor(np.array([each[0] for each in batch], dtype=np.float32))
-            actions     = torch.as_tensor(np.array([each[1] for each in batch], dtype = np.int64))
+            next_states = torch.as_tensor(next_states_np).to(device)
+            rewards = torch.as_tensor(np.array([each[2] for each in batch], dtype=np.float32)).to(device)
+            states = torch.as_tensor(np.array([each[0] for each in batch], dtype=np.float32)).to(device)
+            actions = torch.as_tensor(np.array([each[1] for each in batch], dtype=np.int64)).to(device)
                 
             # Compute Q values for all actions in the new state       
-            target_Qs = mainQN(next_states)
+            with torch.no_grad():
+                target_Qs = targetQN(next_states)
                 
             # Set target_Qs to 0 for states where episode ended because of failure
             episode_ends = (next_states_np == np.zeros(states[0].shape)).all(axis=1)
-            target_Qs[episode_ends] = torch.zeros(action_size)            
+            target_Qs[episode_ends] = torch.zeros(action_size, device=device)            
             
             # Compute targets
             with torch.no_grad():
@@ -245,15 +257,14 @@ def train_Qnetwork(mainQN,
             
             # Compute the Q values of the actions taken        
             main_Qs = mainQN(states)  # Q values for all action in each state
-            Q = torch.gather(main_Qs, np.int64(1), actions.unsqueeze(-1)).squeeze()  # Only the Q values for the actions taken
+            Q = torch.gather(main_Qs, 1, actions.unsqueeze(-1)).squeeze()  # Only the Q values for the actions taken
             
             # Gradient-based update
             loss = loss_fn(Q, y)
             loss.backward()
             optimizer.step()
 
-            #Update target network
-
+            # Update target network
             sdTargetQN = targetQN.state_dict()
             sdMainQN = mainQN.state_dict() 
 
@@ -262,4 +273,4 @@ def train_Qnetwork(mainQN,
 
             targetQN.load_state_dict(sdTargetQN)
 
-    return targetQN    
+    return targetQN.predict
