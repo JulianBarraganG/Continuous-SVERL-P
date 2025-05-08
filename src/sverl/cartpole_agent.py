@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import cma
+from gym import Env
 
 import numpy as np
 
@@ -45,7 +46,7 @@ class PolicyCartpole(nn.Module):
         output = self.fc1(hidden)
         return int(output>0)
     
-def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
+def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env: Env, mask: list|None = None) -> float:
     """
     Returns negative accumulated reward for single pole, fully environment.
 
@@ -57,16 +58,21 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
         Parameterized model.
     env : gym.Env
         Environment ('CartPole-v?').
+    mask : list|None, optional
     """
     torch.nn.utils.vector_to_parameters(torch.Tensor(x), nn.parameters())  # Set the policy parameters
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
     state = env.reset()[0]  # Forget about previous episode
-          
+    if mask is not None:
+        mask = np.array(mask).astype(bool)
+        state = state[mask]  # Convert mask to numpy array
+    
     R = 0  # Accumulated reward
     while True:
-        a = nn(state)
-        
+        a = nn(state)        
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+        if mask is not None:
+            state = state[mask]
         R += reward  # Accumulate 
         if truncated:
             return -1000  # Episode ended, final goal reached, we consider minimization
@@ -74,7 +80,7 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
             return -R  # Episode ended, we consider minimization
     return -R  # Never reached  
 
-def train_cartpole_agent(policy_net , env, ftarget=-9999.9):  
+def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):  
     """
     Function to train a policy network for the CartPole environment using CMA-ES.   
     
@@ -101,7 +107,7 @@ def train_cartpole_agent(policy_net , env, ftarget=-9999.9):
     res = cma.fmin(fitness_cart_pole,  # Objective function
                 initial_weights,  # Initial search point
                 initial_sigma,  # Initial global step-size sigma
-                args=([policy_net, env]),  # Arguments passed to the fitness function
+                args=([policy_net, env, mask]),  # Arguments passed to the fitness function
                    options=cma_options)
     env.close()
   
