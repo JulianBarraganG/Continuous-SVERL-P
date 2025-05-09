@@ -9,7 +9,7 @@ from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.sverl_utils import evaluate_policy, report_sverl_p
 from sverl.group_utils import get_all_subsets
 
-savepath = join("characteristic_dicts", "cartpole_characteristic_dict.pkl")
+savepath = join("characteristic_dicts", "gt_cartpole_characteristic_dict.pkl")
 state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
 
 def marginal_gain(C, i, characteristic_dict):
@@ -43,6 +43,17 @@ def marginal_gain(C, i, characteristic_dict):
 def shapley_value(i, characteristic_dict):
     """
     Calculate the Shapley value for a feature using the marginal gain function and the get_all_subsets function.
+
+    Parameters
+    ----------
+    i : int
+        Index of the feature for which to calculate the Shapley value.
+    characteristic_dict : dict
+        Dictionary containing characteristic values for each coalition.
+    Returns
+    -------
+    float
+        Shapley value for the feature.
     """
     F = int(log2(len(characteristic_dict)))  # Number of features
     list_of_C = np.array(get_all_subsets([i], F))
@@ -59,6 +70,24 @@ def shapley_value(i, characteristic_dict):
 def get_characteristic_dict(savepath: str, env: gym.Env, policy_class: callable, 
                             training_function: callable, no_evaluation_episodes: int , 
                             no_train_episodes: int) -> dict:
+    """
+    Get the characteristic dictionary for the given environment and policy class.
+    
+    Parameters
+    ----------
+    savepath : str
+    env: gym.Env
+    policy_class : callable
+    training_function : callable
+    no_evaluation_episodes : int
+        Number of evaluation episodes per trained policy.
+    no_train_episodes : int
+        Number of polcies to be trained for each coalition.
+
+    Returns
+    -------
+    dict
+    """
     if exists(savepath):
         characteristic_dict = pickle.load(open(savepath, "rb"))  # Load the characteristic dictionary from file
         return characteristic_dict
@@ -93,8 +122,6 @@ def get_characteristic_dict(savepath: str, env: gym.Env, policy_class: callable,
 
 
 characteristic_dict = get_characteristic_dict(savepath, gym.make("CartPole-v1"), PolicyCartpole, train_cartpole_agent, 10, 10)  # Get the characteristic dictionary
-
-
 
 shapley_values = np.zeros(4)  # Initialize Shapley values for each feature
 for i in range(4):
