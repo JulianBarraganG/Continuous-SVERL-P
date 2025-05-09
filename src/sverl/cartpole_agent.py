@@ -61,7 +61,6 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env: Env, mask: list|N
     mask : list|None, optional
     """
     torch.nn.utils.vector_to_parameters(torch.Tensor(x), nn.parameters())  # Set the policy parameters
-    state_space_dimension = env.observation_space.shape[0]  # State space dimension
     state = env.reset()[0]  # Forget about previous episode
     if mask is not None:
         mask = np.array(mask).astype(bool)

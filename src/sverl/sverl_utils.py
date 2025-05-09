@@ -353,15 +353,19 @@ def get_sverl_p(policy,
 
 def report_sverl_p(shap_vls: list,
                     vl_empty_set: list,
+                    vl_full_set: list,
                     state_feature_names: list) -> None:
     """
     Report the Shapley values of the state features and the value of the empty set.
     """
     right_adjust = max([(len(f_name)) for f_name in state_feature_names]) + 1
     empty_set_prefix = "Value of empty set"
+    full_set_prefix = "Value of full set"
     prefix = "Shapley value of "
 
     for i, shap_vl in enumerate(shap_vls):
         print(f"Shapley value of {state_feature_names[i]:<{right_adjust}}: {shap_vl:>8.2f}")
     print(f"{empty_set_prefix:<{right_adjust + len(prefix)}}: {vl_empty_set:>8.2f}")
+    print(f"{full_set_prefix:<{right_adjust + len(prefix)}}: {vl_full_set:>8.2f}")
+    print("Sum of Shapley values and empty set: ", np.sum(shap_vls) + vl_empty_set)
 
