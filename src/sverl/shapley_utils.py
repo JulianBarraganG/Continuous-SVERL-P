@@ -1,95 +1,225 @@
+from gymnasium import Env
+from math import factorial, log2
 import numpy as np
 
-#gets all subsets of masks when one feature is fixed to 0.
-#basically all c \in f/i 
+from joblib import Parallel, delayed
+from os.path import exists
+from os import makedirs
+import pickle
+import tqdm as tqdm
 
-def get_all_subsets(fixed_features: list, list_length: int) -> list:
+from .group_utils import get_all_subsets
+from .imputation_utils import evaluate_policy
+
+#Basically the local sverl. Uses the neural conditioner to predict missing features in the first step, and then has full observability afterwards. 
+#Very uninteresting to be honest, since the cart pole can only go left 0, or right 1. And even though the model gives different values, the decision
+#Will usually still be the same, just with more or less certainty. And even if the missing features leads to a bad decision 
+#In the initital step, it can be saved, so it doesn't really matter much. 
+#I haven't used this function much
+#ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
+def local_sverl_value_function(policy, initial_state, ms_ft_pred_fnc, mask, env):
     """
-    Generate all binary lists of given length with certain positions fixed to 0.
-    
+    Evaluate the policy from a given state, using the believed state to make the initial decision
     Parameters
     ----------
-    fixed_features : list
-        list of indices that must be 0 in all variations
-    list_length : int
-        total length of the binary lists to generate
+    policy : function
+    initial_state : numpy.ndarray
+    ms_ft_pred_fnc : function
+    mask : np.ndarray
+    env : gym.Env
+    Returns
+    -------
+    R : float
+        The cumulated reward
+    """
+    R = 0
+    
+    print(initial_state)
+    believed_initial_state = ms_ft_pred_fnc(initial_state, mask)
+    print(believed_initial_state)
+
+    a = policy(believed_initial_state)
+    
+    state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+    R +=reward
+    
+
+    while True:
+        a = policy(state)
         
-    Returns
-    -------
-    variations : list
-        list of all possible binary lists with the specified features fixed to 0
-    """
-    variations = []
-    
-    # calculate how many bits we need to vary (total length minus fixed positions)
-    variable_positions = [pos for pos in range(list_length) if pos not in fixed_features]
-    num_variable_bits = len(variable_positions)
-    
-    # generate all possible combinations for the variable bits
-    for num in range(2 ** num_variable_bits):
-        binary = [0] * list_length
+        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+        R+=reward
+        if(terminated or truncated): 
+            break
         
-        # fill in the variable positions
-        for bit_pos in range(num_variable_bits):
-            # get the current variable position in the original list
-            original_pos = variable_positions[bit_pos]
-            # get the bit value (0 or 1)
-            bit_value = (num >> (num_variable_bits - 1 - bit_pos)) & 1
-            binary[original_pos] = bit_value
-            
-        variations.append(binary)
-    
-    return variations
+    env.close()
+    return R  # Return the cumulated reward
 
-def get_r(k: int, masked_group: int) -> list:
+
+#Now this is juicy. Gives a global evaluation of the policy, but with missing features.
+#In every step, it uses the neural conditioner to predict the missing features, and then uses the policy to decide what to do.
+#ms_ft_pred_fnc is a missing features prediction function (NC, RandomSampler, etc.)
+def global_sverl_value_function(policy, seed, ms_ft_pred_fnc, mask, env):
     """
-    Gets the permutations of the groups, where masked group is fixed to 0.
+    Evaluate the policy with missing features, using the believed state to make the decision.
+    Parameters
+    ----------
+    policy : callable
+    seed : int
+    ms_ft_pred_fnc : callable
+    mask : np.ndarray
+    env : gym.Env
+    Returns
+    -------
+    R : float
+        The cumulated reward
+    """
+    R = 0
+    true_state = env.reset(seed=seed)[0]  # Forget about previous episode
+    
+    believed_state = ms_ft_pred_fnc(true_state.flatten(), mask)  
+
+    while True:     
+        a = policy(believed_state)
+        
+        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+        R+=reward
+        believed_state = ms_ft_pred_fnc(state.flatten(), mask)
+       
+        if(terminated or truncated): 
+            break
+        
+    env.close()
+    return R
+
+
+def marginal_gain(C, i, characteristic_dict):
+
+    """
+    Calculate the marginal gain of adding feature i to the coalition C.
     
     Parameters
     ----------
-    k : int 
-        number of groups
-    masked_group : int
-        the group that is fixed to 0
+    C : np.ndarray
+        Coalition mask.
+    C_i : np.ndarray
+        Coalition mask with feature i added.
+    characteristic_dict : dict
+        Dictionary containing characteristic values for each coalition.
 
     Returns
     -------
-    list
-        get_all_subsets which treats groups as features
+    float
+        Marginal gain of adding feature i to coalition C.
     """
-    return get_all_subsets([masked_group], k)
+    C_i = np.copy(C)
+    C_i[i] = 1  # Add feature i to the coalition
+    V_C = characteristic_dict[C.tobytes()]
+    V_C_i = characteristic_dict[C_i.tobytes()]
+    
+    return V_C_i - V_C 
 
-def get_all_group_subsets(G: list, 
-                          masked_group: int,
-                          r: list | None = None) -> np.ndarray:
+#Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
+def shapley_value(i, characteristic_dict):
     """
-    Gets all permutations of subsets, with masked group fixed to 0.
+    Calculate the Shapley value for a feature using the marginal gain function and the get_all_subsets function.
 
     Parameters
     ----------
-    g : list
-    masked_group : int
-        the group that is fixed to 0
-
+    i : int
+        Index of the feature for which to calculate the Shapley value.
+    characteristic_dict : dict
+        Dictionary containing characteristic values for each coalition.
     Returns
     -------
-    permutations : np.ndarray
-        all permutations of the groups, with masked group fixed to 0.   
+    float
+        Shapley value for the feature.
     """
+    F = int(log2(len(characteristic_dict)))  # Number of features
+    list_of_C = np.array(get_all_subsets([i], F))
+    sum = 0
+    for C in list_of_C:
+        cardinality = np.sum(C)  # Cardinality of the coalition
+        enum = factorial(cardinality)*factorial(F - cardinality - 1)  # Number of permutations of the groups, with masked group fixed to 0
+        denom = factorial(F)  # Number of permutations of the groups, with masked group fixed to 0
+        normalization = enum / denom  # Normalization factor
+        sum += marginal_gain(C, i, characteristic_dict)*  normalization
+    return sum
 
-    # first index = group & second index = feature index
-    n = sum(len(sublist) for sublist in G) # number of features
-    k = len(G) # number of groups
-    num_perms = 2**(k-1) # number of permutations / len(r)
+def get_gt_characteristic_dict(savepath: str, env, policy_class: callable, 
+                                training_function: callable, no_evaluation_episodes: int, 
+                                no_train_episodes: int) -> dict:
+    if exists(savepath):
+        return pickle.load(open(savepath, "rb"))
 
-    r = get_r(k, masked_group) if r is None else r
+    if not exists("characteristic_dicts"):
+        makedirs("characteristic_dicts")
 
-    permutations = np.ones((num_perms, n), dtype=np.int64)  # initialize the permutations array
-    for l, rnoget in enumerate(r):
-        p_i = np.ones(n)
-        for i in range(k):
-            # loop over every j feature index in the i-th group.
-            for j in G[i]: 
-                p_i[j] = rnoget[i]
-        permutations[l] = p_i
-    return permutations
+    action_space_dimension = env.action_space.n - 1
+    state_feature_size = env.observation_space.shape[0]
+    all_coalitions = np.array(get_all_subsets([], state_feature_size))
+
+    def compute_characteristic(mask):
+        def train_and_evaluate_single_run():
+            state_space_dimension = np.sum(mask)
+            policy = policy_class(state_space_dimension, action_space_dimension)
+            trained_policy = training_function(policy, env, mask=mask)
+            return np.mean(evaluate_policy(no_evaluation_episodes, env, trained_policy, mask))
+
+        rewards = Parallel(n_jobs=-1)(
+            delayed(train_and_evaluate_single_run)()
+            for _ in range(no_train_episodes)
+        )
+
+        return (mask.tobytes(), np.mean(rewards))
+
+    results = Parallel(n_jobs=-1)(
+        delayed(compute_characteristic)(mask)
+        for mask in all_coalitions
+    )
+
+    characteristic_dict = dict(results)
+
+    pickle.dump(characteristic_dict, open(savepath, "wb"))
+    return characteristic_dict
+
+
+
+
+
+
+
+
+#Takes a feature i, and a mask C. Gives the marginal gain of adding feature i to the mask C, via an evaluation function
+# def marginal_gain(policy, ms_ft_prd_fnc,eval_function , features, C, seed, env): 
+#     """
+#     Calculates the marginal gain of adding feature i to the mask C, using the eval_function.
+#     """
+#     C_i = np.copy(C)
+#     for i in features:
+#         C_i[i] = 1
+# 
+#     V_C = eval_function(policy, seed, ms_ft_prd_fnc, C, env)
+# 
+#     V_C_i= eval_function(policy, seed, ms_ft_prd_fnc, C_i, env)
+# 
+#     return V_C_i - V_C
+# def shapley_value(policy, ms_ft_pred_fnc, eval_function,  G, masked_group, seed, env):
+#     """
+#     Calculate the Shapley value for a feature using the marginal gain function and the get_all_subsets function.
+#     """
+#     # Cardinality integers
+#     num_groups = len(G) # |F| i.e. number of groups 
+#     num_groups_per_C = get_r(num_groups, masked_group)  # All possible |C| for all permutations excluding the masked group
+# 
+#     list_of_C = get_all_group_subsets(G, masked_group, r=num_groups_per_C)
+#     sum = 0
+# 
+#     for c, C in enumerate(list_of_C):
+#         enum = (factorial(np.sum(num_groups_per_C[c]))) * factorial(num_groups - np.sum(num_groups_per_C[c]) - 1)
+#         denom = factorial(num_groups)
+#         normalizing_constant = enum / denom
+#         marginal_gain_i = marginal_gain(policy, ms_ft_pred_fnc, eval_function, G[masked_group], C, seed, env)
+#         sum += normalizing_constant * marginal_gain_i
+#     return sum
+

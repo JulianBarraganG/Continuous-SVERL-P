@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import cma
-from gym import Env
+from gymnasium import Env
 
 import numpy as np
 
@@ -53,7 +53,7 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env: Env, mask: list[i
         Parameter vector encoding the weights.
     nn : torch.nn.Module 
         Parameterized model.
-    env : gym.Env
+    env : Env
         Environment ('CartPole-v?').
     mask : list|None, optional
     """
@@ -84,7 +84,7 @@ def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):
     ----------
     policy_net : PolicyCartpole 
         Policy network to be trained.
-    env : gym.Env
+    env : Env
         CartPole environment.
     ftarget : float
         Target fitness value for CMA-ES. Default is -9999.9.
@@ -99,7 +99,8 @@ def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):
     initial_sigma = .01 # Initial global step-size sigma
 
     # Do the optimization
-    cma_options = {'ftarget': ftarget, 'tolflatfitness':1000, 'eval_final_mean':False, 'verb_filenameprefix': '', 'verb_log': 0}
+    cma_options = {'ftarget': ftarget, 'tolflatfitness':1000, 'eval_final_mean':False,
+                   'verb_filenameprefix': '', 'verb_log': 0, 'verb_disp': 0}
     res = cma.fmin(fitness_cart_pole,  # Objective function
                 initial_weights,  # Initial search point
                 initial_sigma,  # Initial global step-size sigma
