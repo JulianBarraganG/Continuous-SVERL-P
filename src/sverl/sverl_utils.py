@@ -367,5 +367,4 @@ def report_sverl_p(shap_vls: list,
         print(f"Shapley value of {state_feature_names[i]:<{right_adjust}}: {shap_vl:>8.2f}")
     print(f"{empty_set_prefix:<{right_adjust + len(prefix)}}: {vl_empty_set:>8.2f}")
     print(f"{full_set_prefix:<{right_adjust + len(prefix)}}: {vl_full_set:>8.2f}")
-    print("Sum of Shapley values and empty set: ", np.sum(shap_vls) + vl_empty_set)
 
