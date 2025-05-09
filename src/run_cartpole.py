@@ -51,6 +51,7 @@ if feature_imputation_model_missing:
     dataset = StateFeatureDataset(trajectory, batch_size=batch_size, shuffle=True)
     dataloader = dataset.dataloader
     input_dim = state_space_dimension  # size of the data
+    # TODO: Investigate appropriate latent_dim in both cart pole lunar lander
     latent_dim = 64  # Size of the latent space
 
     nc = load_neural_conditioner(nc_filepath, input_dim=input_dim, latent_dim=latent_dim, dataloader=dataloader)
@@ -77,3 +78,5 @@ report_sverl_p(nc_shapley_values, nc_value_empty_set, state_feature_names)
 print("\nCalculating Shapley values based on VAEAC...")
 vaeac_shapley_values, vaeac_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample)
 report_sverl_p(vaeac_shapley_values, vaeac_value_empty_set, state_feature_names)
+
+#################### Print Shapley values for groups of features ####################

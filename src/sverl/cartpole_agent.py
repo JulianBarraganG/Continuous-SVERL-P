@@ -14,9 +14,7 @@ class PolicyCartpole(nn.Module):
         Parameters
         ----------
         state_space_dimension : int 
-            Dimension of the state space.
         action_space_dimension : int
-            Dimension of the action space.
         num_neurons : int
             Number of neurons in the hidden layer.
         bias : bool
@@ -34,7 +32,7 @@ class PolicyCartpole(nn.Module):
         Parameters
         ----------
         x : np.ndarray
-            Input state vector.
+            Input state feature vector.
         Returns
         -------
         int
@@ -45,7 +43,7 @@ class PolicyCartpole(nn.Module):
         output = self.fc1(hidden)
         return int(output>0)
     
-def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
+def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env, mask: list[int]|None = None) -> float:
     """
     Returns negative accumulated reward for single pole, fully environment.
 
@@ -57,6 +55,7 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
         Parameterized model.
     env : gym.Env
         Environment ('CartPole-v?').
+    mask : list | None
     """
     torch.nn.utils.vector_to_parameters(torch.Tensor(x), nn.parameters())  # Set the policy parameters
     state_space_dimension = env.observation_space.shape[0]  # State space dimension
@@ -74,7 +73,7 @@ def fitness_cart_pole(x: np.ndarray, nn: torch.nn.Module, env) -> float:
             return -R  # Episode ended, we consider minimization
     return -R  # Never reached  
 
-def train_cartpole_agent(policy_net , env, ftarget=-9999.9):  
+def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):  
     """
     Function to train a policy network for the CartPole environment using CMA-ES.   
     

@@ -13,9 +13,16 @@ from sverl.sverl_utils import (
 from sverl.lunar_agent import QNetwork, train_Qnetwork
 from vaeac.train_utils import TrainingArgs
 
+# Groups for group Shapley values
 G = [[0, 1], [2, 3], [4], [5], [6, 7]]
-group_feature_names = ["Coordinates", "Linear Velocities", "Angle" , "Angular Velocity", "Touching Ground"]
-env = gym.make('LunarLander-v3', render_mode="rgb_array") 
+group_feature_names = ["Coordinates", "Linear Velocities", "Angle",
+                       "Angular Velocity", "Touching Ground"]
+
+individual_feature_names = ["X Coordinate", "Y Coordinate", "X Linear Velocity",
+                            "Y Linear Velocity", "Angle", "Angular Velocity",
+                            "Left Leg", "Right Leg"]
+
+env = gym.make('LunarLander-v3', render_mode="rgb_array")
 
 # One hot max sizes for the LunarLander environment
 # 0-s are for continuous features (real valued) and 2-s are for binary inputs.
@@ -66,25 +73,25 @@ vaeac.cpu()
 #################### Print Shapley values for individual features ####################
 print("Calculating Shapley values based on RandomSampler...")
 rs_shapley_values, rs_value_empty_set = get_sverl_p(policy, env, rs.pred)
-report_sverl_p(rs_shapley_values, rs_value_empty_set, group_feature_names)
+report_sverl_p(rs_shapley_values, rs_value_empty_set, individual_feature_names)
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
 nc_shapley_values, nc_value_empty_set = get_sverl_p(policy, env, nc.pred)
-report_sverl_p(nc_shapley_values, nc_value_empty_set, group_feature_names)
+report_sverl_p(nc_shapley_values, nc_value_empty_set, individual_feature_names)
 
 print("\nCalculating Shapley values based on VAEAC...")
 vaeac_shapley_values, vaeac_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample)
-report_sverl_p(vaeac_shapley_values, vaeac_value_empty_set, group_feature_names)
+report_sverl_p(vaeac_shapley_values, vaeac_value_empty_set, individual_feature_names)
 
 #################### Print shapley values for groups of features ####################
-# print("\nCalculating Group Shapley values based on RandomSampler...")
-# rs_group_shapley_values, rs_group_value_empty_set = get_sverl_p(policy, env, rs.pred, G=G)
-# report_sverl_p(rs_group_shapley_values, rs_group_value_empty_set, group_feature_names, G=G)
-# 
-# print("\nCalculating Group Shapley values based on NeuralConditioner...")
-# nc_group_shapley_values, nc_group_value_empty_set = get_sverl_p(policy, env, nc.pred, G=G)
-# report_sverl_p(nc_group_shapley_values, nc_group_value_empty_set, group_feature_names, G=G)
-# 
-# print("\nCalculating Group Shapley values based on VAEAC...")
-# vaeac_group_shapley_values, vaeac_group_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample, G=G)
-# report_sverl_p(vaeac_group_shapley_values, vaeac_group_value_empty_set, group_feature_names, G=G)
+print("\nCalculating Group Shapley values based on RandomSampler...")
+rs_group_shapley_values, rs_group_value_empty_set = get_sverl_p(policy, env, rs.pred, G=G)
+report_sverl_p(rs_group_shapley_values, rs_group_value_empty_set, group_feature_names, G=G)
+
+print("\nCalculating Group Shapley values based on NeuralConditioner...")
+nc_group_shapley_values, nc_group_value_empty_set = get_sverl_p(policy, env, nc.pred, G=G)
+report_sverl_p(nc_group_shapley_values, nc_group_value_empty_set, group_feature_names, G=G)
+
+print("\nCalculating Group Shapley values based on VAEAC...")
+vaeac_group_shapley_values, vaeac_group_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample, G=G)
+report_sverl_p(vaeac_group_shapley_values, vaeac_group_value_empty_set, group_feature_names, G=G)
