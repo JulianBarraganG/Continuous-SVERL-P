@@ -74,7 +74,7 @@ def get_trajectory(policy, env, time_horizon = 10**3):
         
     return np.array(trajectory_features)
 
-def evaluate_policy(no_episodes: int, env: gym.Env, policy: callable) -> np.ndarray: 
+def evaluate_policy(no_episodes: int, env: gym.Env, policy: callable, mask: list|None = None) -> np.ndarray: 
     """
     Evaluate the policy by running it in the environment for a number of episodes.
 
@@ -90,6 +90,8 @@ def evaluate_policy(no_episodes: int, env: gym.Env, policy: callable) -> np.ndar
         The rewards obtained by the policy in each episode.
     """
     rewards = []
+    if mask is not None:
+        mask = np.array(mask).astype(bool)
     # Check and see what type (np.ndarray or torch.Tensor) policy expects the state to be
     try:
         dummy_state = env.reset()[0]
@@ -101,9 +103,13 @@ def evaluate_policy(no_episodes: int, env: gym.Env, policy: callable) -> np.ndar
     for _ in trange(no_episodes):
         r = 0
         state = env.reset()[0]
+        if mask is not None:
+            state = state[mask]
         state = torch.as_tensor(state) if expects_torch else state
         while True:  # environment sets "truncated" to true after 500 steps 
                 state, reward, terminated, truncated, _ = env.step( policy(state) ) #  take a  action
+                if mask is not None:
+                    state = state[mask]
                 state = torch.as_tensor(state) if expects_torch else state
                 r += reward  # accumulate reward
                 if terminated or truncated:
@@ -347,15 +353,18 @@ def get_sverl_p(policy,
 
 def report_sverl_p(shap_vls: list,
                     vl_empty_set: list,
+                    vl_full_set: list,
                     state_feature_names: list) -> None:
     """
     Report the Shapley values of the state features and the value of the empty set.
     """
     right_adjust = max([(len(f_name)) for f_name in state_feature_names]) + 1
     empty_set_prefix = "Value of empty set"
+    full_set_prefix = "Value of full set"
     prefix = "Shapley value of "
 
     for i, shap_vl in enumerate(shap_vls):
         print(f"Shapley value of {state_feature_names[i]:<{right_adjust}}: {shap_vl:>8.2f}")
     print(f"{empty_set_prefix:<{right_adjust + len(prefix)}}: {vl_empty_set:>8.2f}")
+    print(f"{full_set_prefix:<{right_adjust + len(prefix)}}: {vl_full_set:>8.2f}")
 
