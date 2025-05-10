@@ -20,6 +20,8 @@ class PolicyCartpole(nn.Module):
         bias : bool
             Whether to include bias in the linear layers. Should be False for CartPole.
         """
+        np.random.seed(0)
+        torch.manual_seed(0)
         super(PolicyCartpole, self).__init__()
         self.state_space_dimension = state_space_dimension
         self.fc = nn.Linear(state_space_dimension, num_neurons, bias=bias)
@@ -94,6 +96,9 @@ def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):
         Trained policy network.
     """   
     # Set the random seed for reproducibility
+    np.random.seed(0)
+    torch.manual_seed(0)
+
     d = sum(param.numel() for param in policy_net.parameters())
     initial_weights = np.random.normal(0, 0.01, d)  # Random parameters for initial policy, d denotes the number of weights
     initial_sigma = .01 # Initial global step-size sigma

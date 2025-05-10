@@ -262,10 +262,16 @@ def get_policy_and_trajectory(policy,
     else: # if the model already exists, we load it and the trajectory
         print("loading agent...")
         policy = pickle.load(open(model_filepath, "rb")) #loading the policy
-        print("loeading trajectory...")
+
+
+
+        print("loading trajectory...")
         if gen_and_save_trajectory:
-            trajectory_filepath = join("data", trajectory_filename + ".csv")
-            trajectory = np.loadtxt(trajectory_filepath, delimiter=",") #loading the trajectory
+            print("generating trajectory...")
+            trajectory = get_trajectory(policy, env, time_horizon = 10**5) #running the agent for 20 times, and storing the results
+            # save trajectory to a csv file
+            save_trajectory(trajectory, trajectory_filename, delimiter=',') # saved at data/cartpole_trajectory.csv
+            print("trajectory saved at: ", trajectory_filename)
             return policy, trajectory
 
     return policy, None

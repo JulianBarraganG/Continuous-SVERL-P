@@ -1,17 +1,15 @@
 import gymnasium as gym  # Defines RL environments
 from os.path import join, exists
+import numpy as np
 
-from sverl.sverl_utils import (
-        StateFeatureDataset,
-        get_policy_and_trajectory, 
-        load_neural_conditioner, 
-        load_random_sampler, 
-        load_vaeac, 
-        get_sverl_p,
-        report_sverl_p
-        )
+from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from vaeac.train_utils import TrainingArgs
+
+from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value, global_sverl_value_function
+from sverl.sverl_utils import report_sverl_p
+
+
 
 # Define the groups for group Shapley values
 state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
@@ -32,11 +30,14 @@ trajectory_filename = "cartpole_trajectory"
 rs_filepath = join("imputation_models", "cartpole_rs.pkl")
 nc_filepath = join("imputation_models", "cartpole_nc.pkl")
 vaeac_filepath = join("imputation_models", "cartpole_vaeac.pkl")
-
+rs_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_rs_characteristic_dict.pkl")
+nc_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
+vaeac_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
 # Check if the model and trajectory files exist, otherwise train and save them
 feature_imputation_model_missing = not(exists(rs_filepath) 
                                        and exists(nc_filepath) 
                                        and exists(vaeac_filepath))
+
 
 # We assume trajectory file is csv
 policy, trajectory = get_policy_and_trajectory(policy,
@@ -68,15 +69,28 @@ vaeac.cpu()
 #The i is the seed. This is the only way I know how to set the starting position 
 
 print("Calculating Shapley values based on RandomSampler...")
-rs_shapley_values, rs_value_empty_set = get_sverl_p(policy, env, rs.pred)
-report_sverl_p(rs_shapley_values, rs_value_empty_set, state_feature_names)
+
+rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath, env, policy, rs.pred, 10, global_sverl_value_function)
+rs_shapley_values = np.zeros(len(state_feature_names)) 
+
+for i in range(len(rs_shapley_values)): 
+    rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(rs_shapley_values, state_feature_names)
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
-nc_shapley_values, nc_value_empty_set = get_sverl_p(policy, env, nc.pred)
-report_sverl_p(nc_shapley_values, nc_value_empty_set, state_feature_names)
+nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath, env, policy, nc.pred, 10, global_sverl_value_function)
+nc_shapley_values = np.zeros(len(state_feature_names)) 
+
+for i in range(len(nc_shapley_values)): 
+    nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(nc_shapley_values, state_feature_names)
+
 
 print("\nCalculating Shapley values based on VAEAC...")
-vaeac_shapley_values, vaeac_value_empty_set = get_sverl_p(policy, env, vaeac.generate_probable_sample)
-report_sverl_p(vaeac_shapley_values, vaeac_value_empty_set, state_feature_names)
+vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath, env, policy, vaeac.generate_probable_sample, 10, global_sverl_value_function)
+vaeac_shapley_values = np.zeros(len(state_feature_names)) 
 
-#################### Print Shapley values for groups of features ####################
+for i in range(len(vaeac_shapley_values)): 
+    vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(vaeac_shapley_values, state_feature_names)
+
