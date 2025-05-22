@@ -34,9 +34,10 @@ def local_sverl_value_function(policy, initial_state, imputation_fnc, mask, env)
     """
     R = 0
     
-    print(initial_state)
+    
     believed_initial_state = imputation_fnc(initial_state, mask)
-    print(believed_initial_state)
+    env.reset() 
+    env.unwrapped.state = initial_state
 
     a = policy(believed_initial_state)
     
@@ -215,7 +216,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 
 
 def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, imputation_fnc: callable,
-                                no_evaluation_episodes: int, characteristic_fnc: callable) -> dict:
+                                no_evaluation_episodes: int, characteristic_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
     
     """ 
     Get the dictionary of characteristic values for all coalitions, using an imputation function.
@@ -247,7 +248,10 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
     def compute_characteristic(mask):
         reward = 0
         for seed in range(no_evaluation_episodes): 
-            reward += characteristic_fnc(policy, seed, imputation_fnc, mask, env)
+            if starting_state.any() != None: 
+                reward += characteristic_fnc(policy, starting_state, imputation_fnc, mask, env)
+            else:
+                reward += characteristic_fnc(policy, seed, imputation_fnc, mask, env)
         return (mask.tobytes(), reward/no_evaluation_episodes)
 
     results = Parallel(n_jobs=-1)(
