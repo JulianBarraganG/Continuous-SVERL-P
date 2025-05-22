@@ -26,5 +26,5 @@ for i in range(state_space_dim):
 empty_set_val = characteristic_dict[empty_set_mask]  # Get the value of the empty set
 
 # Report the SVERL-P values
-report_sverl_p(shapley_values, state_feature_names)
+report_sverl_p(shapley_values, state_feature_names, row_name="GT_CP", data_file_prefix="cartpole")
 

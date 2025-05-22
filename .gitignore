@@ -6,3 +6,5 @@ src/models/
 src/imputation_models/
 *__pycache__/
 *outcmaes/
+*/characteristic_dicts/
+*/plots

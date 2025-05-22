@@ -69,13 +69,12 @@ vaeac.cpu()
 #The i is the seed. This is the only way I know how to set the starting position 
 
 print("Calculating Shapley values based on RandomSampler...")
-
 rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath, env, policy, rs.pred, 10, global_sverl_value_function)
 rs_shapley_values = np.zeros(len(state_feature_names)) 
 
 for i in range(len(rs_shapley_values)): 
     rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(rs_shapley_values, state_feature_names)
+report_sverl_p(rs_shapley_values, state_feature_names, row_name="RS", data_file_prefix="cartpole")
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
 nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath, env, policy, nc.pred, 10, global_sverl_value_function)
@@ -83,7 +82,7 @@ nc_shapley_values = np.zeros(len(state_feature_names))
 
 for i in range(len(nc_shapley_values)): 
     nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(nc_shapley_values, state_feature_names)
+report_sverl_p(nc_shapley_values, state_feature_names, row_name="NC", data_file_prefix="cartpole")
 
 
 print("\nCalculating Shapley values based on VAEAC...")
@@ -92,5 +91,5 @@ vaeac_shapley_values = np.zeros(len(state_feature_names))
 
 for i in range(len(vaeac_shapley_values)): 
     vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(vaeac_shapley_values, state_feature_names)
+report_sverl_p(vaeac_shapley_values, state_feature_names, row_name="VAEAC", data_file_prefix="cartpole")
 

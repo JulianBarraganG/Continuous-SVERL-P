@@ -215,7 +215,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 
 
 def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, imputation_fnc: callable,
-                                no_evaluation_episodes: int, evaluation_fnc: callable) -> dict:
+                                no_evaluation_episodes: int, characteristic_fnc: callable) -> dict:
     
     """ 
     Get the dictionary of characteristic values for all coalitions, using an imputation function.
@@ -227,10 +227,8 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
     policy : callable
     imputation_fnc : callable
     no_evaluation_episodes : int
-    evaluation_fnc : callable
-        Evaluation function used. Typically global_sverl_value_function since local_sverl_value_function doesn't work properly
-        at this point (10/05/2025)
-
+    characteristic_fnc : callable
+        Evaluation function used. Currently only works for *global* SVERL.
     returns 
     -------
     dict
@@ -249,7 +247,7 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
     def compute_characteristic(mask):
         reward = 0
         for seed in range(no_evaluation_episodes): 
-            reward += evaluation_fnc(policy, seed, imputation_fnc, mask, env)
+            reward += characteristic_fnc(policy, seed, imputation_fnc, mask, env)
         return (mask.tobytes(), reward/no_evaluation_episodes)
 
     results = Parallel(n_jobs=-1)(
@@ -261,3 +259,4 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
 
     pickle.dump(characteristic_dict, open(savepath, "wb"))
     return characteristic_dict
+
