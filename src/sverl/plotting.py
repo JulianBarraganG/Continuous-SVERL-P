@@ -27,8 +27,6 @@ def plot_data(df: pl.DataFrame,
     #      for col in df.columns]
     # )
 
-    _, ax = plt.subplots(figsize=(10, 6))
-
     n_columns = df.width
     n_bars_per_column = df.height - 1  # Assuming first row is for through-lines
 
@@ -45,7 +43,7 @@ def plot_data(df: pl.DataFrame,
         for bar_idx in range(n_bars_per_column):
             x = x_positions[col_idx] + (bar_idx - (n_bars_per_column-1)/2) * bar_width
             value = normalized_df.row(bar_idx + 1)[col_idx]  # +1 to skip through-line row/col
-            bar = ax.bar(x, value, width=bar_width, color=colors[bar_idx], 
+            bar = plt.bar(x, value, width=bar_width, color=colors[bar_idx], 
                         label=bar_labels[bar_idx] if col_idx == 0 else "")
 
     # Plot through-lines
@@ -53,16 +51,15 @@ def plot_data(df: pl.DataFrame,
         line_value = normalized_df.row(0)[col_idx]
         x_min = x_positions[col_idx] - (n_bars_per_column/2) * bar_width
         x_max = x_positions[col_idx] + (n_bars_per_column/2) * bar_width
-        ax.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
+        plt.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
                  label='Through-line' if col_idx == 0 else "")
 
     # Plot configs
-    ax.set_xticks(x_positions)
-    ax.set_xticklabels(state_feature_names)
-    ax.axhline(0, color='black', linewidth=0.5)
-    ax.set_ylabel('Shapley Value')
-    ax.set_title('Shapley Values with Reference Lines')
-    ax.legend()
+    plt.xticks(x_positions, labels=state_feature_names)
+    plt.axhline(0, color='black', linewidth=0.5)
+    plt.ylabel('Shapley Value')
+    plt.title('Shapley Values with Reference Lines')
+    plt.legend()
     plt.grid()
     plt.tight_layout()
 
