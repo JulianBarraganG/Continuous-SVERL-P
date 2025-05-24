@@ -1,11 +1,78 @@
 import csv
 import numpy as np
-import time
 import os
-from tqdm import trange
-from gymnasium import Env
 
-from .shapley_utils import shapley_value, global_sverl_value_function
+def local_sverl_value_function(policy, initial_state, imputation_fnc, mask, env):
+    """
+    Evaluate the policy from a given state, using the believed state to make the initial decision
+    Parameters
+    ----------
+    policy : function
+    initial_state : numpy.ndarray
+    imputation_fnc : function
+    mask : np.ndarray
+    env : gym.Env
+    Returns
+    -------
+    R : float
+        The cumulated reward
+    """
+    R = 0
+    
+    
+    believed_initial_state = imputation_fnc(initial_state, mask)
+    env.reset() 
+    env.unwrapped.state = initial_state
+
+    a = policy(believed_initial_state)
+    
+    state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+    R +=reward
+    
+
+    while True:
+        a = policy(state)
+        
+        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+        R+=reward
+        if(terminated or truncated): 
+            break
+        
+    env.close()
+    return R  # Return the cumulated reward
+
+def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
+    """
+    Evaluate the policy with missing features, using the believed state to make the decision.
+    Parameters
+    ----------
+    policy : callable
+    seed : int
+    imputation_fnc : callable
+    mask : np.ndarray
+    env : gym.Env
+    Returns
+    -------
+    R : float
+        The cumulated reward
+    """
+    R = 0
+    true_state = env.reset(seed=seed)[0]  # Forget about previous episode
+    
+    believed_state = imputation_fnc(true_state.flatten(), mask)  
+
+    while True:     
+        a = policy(believed_state)
+        
+        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
+        R+=reward
+        believed_state = imputation_fnc(state.flatten(), mask)
+       
+        if(terminated or truncated): 
+            break
+        
+    env.close()
+    return R
 
 def report_sverl_p(shapley_values: np.ndarray,
                     state_feature_names: list[str],

@@ -11,88 +11,6 @@ import tqdm as tqdm
 from .group_utils import get_all_subsets
 from .imputation_utils import evaluate_policy
 
-#Basically the local sverl. Uses the neural conditioner to predict missing features in the first step, and then has full observability afterwards. 
-#Very uninteresting to be honest, since the cart pole can only go left 0, or right 1. And even though the model gives different values, the decision
-#Will usually still be the same, just with more or less certainty. And even if the missing features leads to a bad decision 
-#In the initital step, it can be saved, so it doesn't really matter much. 
-#I haven't used this function much
-#imputation_fnc is a missing features prediction function (NC, RandomSampler, etc.)
-def local_sverl_value_function(policy, initial_state, imputation_fnc, mask, env):
-    """
-    Evaluate the policy from a given state, using the believed state to make the initial decision
-    Parameters
-    ----------
-    policy : function
-    initial_state : numpy.ndarray
-    imputation_fnc : function
-    mask : np.ndarray
-    env : gym.Env
-    Returns
-    -------
-    R : float
-        The cumulated reward
-    """
-    R = 0
-    
-    
-    believed_initial_state = imputation_fnc(initial_state, mask)
-    env.reset() 
-    env.unwrapped.state = initial_state
-
-    a = policy(believed_initial_state)
-    
-    state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
-    R +=reward
-    
-
-    while True:
-        a = policy(state)
-        
-        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
-        R+=reward
-        if(terminated or truncated): 
-            break
-        
-    env.close()
-    return R  # Return the cumulated reward
-
-
-#Now this is juicy. Gives a global evaluation of the policy, but with missing features.
-#In every step, it uses the neural conditioner to predict the missing features, and then uses the policy to decide what to do.
-#imputation_fnc is a missing features prediction function (NC, RandomSampler, etc.)
-def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
-    """
-    Evaluate the policy with missing features, using the believed state to make the decision.
-    Parameters
-    ----------
-    policy : callable
-    seed : int
-    imputation_fnc : callable
-    mask : np.ndarray
-    env : gym.Env
-    Returns
-    -------
-    R : float
-        The cumulated reward
-    """
-    R = 0
-    true_state = env.reset(seed=seed)[0]  # Forget about previous episode
-    
-    believed_state = imputation_fnc(true_state.flatten(), mask)  
-
-    while True:     
-        a = policy(believed_state)
-        
-        state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
-        R+=reward
-        believed_state = imputation_fnc(state.flatten(), mask)
-       
-        if(terminated or truncated): 
-            break
-        
-    env.close()
-    return R
-
 
 def marginal_gain(C, i, characteristic_dict):
 
@@ -216,7 +134,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 
 
 def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, imputation_fnc: callable,
-                                no_evaluation_episodes: int, characteristic_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
+                                no_evaluation_episodes: int, char_val_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
     
     """ 
     Get the dictionary of characteristic values for all coalitions, using an imputation function.
@@ -228,8 +146,9 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
     policy : callable
     imputation_fnc : callable
     no_evaluation_episodes : int
-    characteristic_fnc : callable
-        Evaluation function used. Currently only works for *global* SVERL.
+    char_val_fnc : callable
+        The characteristic value function, or "contribution function".
+        This is the function input of Shapley values $\\phi_i(v)$.
     returns 
     -------
     dict
@@ -249,9 +168,9 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
         reward = 0
         for seed in range(no_evaluation_episodes): 
             if starting_state.any() != None: 
-                reward += characteristic_fnc(policy, starting_state, imputation_fnc, mask, env)
+                reward += char_val_fnc(policy, starting_state, imputation_fnc, mask, env)
             else:
-                reward += characteristic_fnc(policy, seed, imputation_fnc, mask, env)
+                reward += char_val_fnc(policy, seed, imputation_fnc, mask, env)
         return (mask.tobytes(), reward/no_evaluation_episodes)
 
     results = Parallel(n_jobs=-1)(
