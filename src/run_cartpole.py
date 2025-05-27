@@ -6,28 +6,28 @@ from sverl.imputation_utils import load_random_sampler, load_neural_conditioner,
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from vaeac.train_utils import TrainingArgs
 
-from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value, global_sverl_value_function, local_sverl_value_function
-from sverl.sverl_utils import report_sverl_p
+from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
+from sverl.sverl_utils import report_sverl_p, global_sverl_value_function, local_sverl_value_function
 
 
-
+########################################## VARIABLE DECLARATIONS ##########################################
+#### Environment specific variables ####
 # Define the groups for group Shapley values
 state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
 G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
-
 env = gym.make('CartPole-v1')
 
-# CartPole one hot max sizes are all 0-s,
-# since each feature is continous (i.e. real)
-cp_one_hot_max_sizes = [0, 0, 0, 0]
-
-starting_state = np.array([1,0,0,0], dtype = np.int32)
 empty_set_mask = np.array([0,0,0,0]).tobytes()
 
 action_space_dimension = env.action_space.n - 1 # This is the dimension, not the size 
 state_space_dimension = env.observation_space.shape[0]
 
+# CartPole one hot max sizes are all 0-s,
+# since each feature is continous (i.e. real)
+cp_one_hot_max_sizes = [0, 0, 0, 0]
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
+
+#### Filepaths for pkls and csv data ####
 model_filepath = join("models", "cartpole_policy.pkl")
 trajectory_filename = "cartpole_trajectory"
 rs_filepath = join("imputation_models", "cartpole_rs.pkl")
@@ -36,11 +36,11 @@ vaeac_filepath = join("imputation_models", "cartpole_vaeac.pkl")
 rs_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_rs_characteristic_dict.pkl")
 nc_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
 vaeac_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
+
 # Check if the model and trajectory files exist, otherwise train and save them
 feature_imputation_model_missing = not(exists(rs_filepath) 
                                        and exists(nc_filepath) 
                                        and exists(vaeac_filepath))
-
 
 # We assume trajectory file is csv
 policy, trajectory = get_policy_and_trajectory(policy,
@@ -69,31 +69,54 @@ else:
 # Move trained model to CPU
 vaeac.cpu()
 
-#The i is the seed. This is the only way I know how to set the starting position 
+########################## CALC AND REPORT SHAPLEY VALUES ##########################
+
+# Instantiate shapley value arrays and variables
+nc_shapley_values = np.zeros(len(state_feature_names)) 
+vaeac_shapley_values = np.zeros(len(state_feature_names)) 
+rs_shapley_values = np.zeros(len(state_feature_names)) 
+eval_rounds = 10  # Number of evaluation rounds for each imputation method
+
+# For local
+starting_state = np.array([1,0,0,0], dtype = np.int32)
 
 print("Calculating Shapley values based on RandomSampler...")
-rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath, env, policy, rs.pred, 10, local_sverl_value_function, starting_state)
-rs_shapley_values = np.zeros(len(state_feature_names)) 
+rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath, 
+                                               env,
+                                               policy,
+                                               rs.pred,
+                                               eval_rounds, 
+                                               global_sverl_value_function)
 
+# Shapley values for Random Sampler
 for i in range(len(rs_shapley_values)): 
     rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(rs_shapley_values, state_feature_names, row_name="RS", data_file_prefix="cartpole")
-print("Characteristic value of empty set : ", rs_char_dict[empty_set_mask])
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
-nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath, env, policy, nc.pred, 10, local_sverl_value_function, starting_state)
-nc_shapley_values = np.zeros(len(state_feature_names)) 
+nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
+                                               env,
+                                               policy,
+                                               nc.pred,
+                                               eval_rounds,
+                                               global_sverl_value_function)
 
+# Shapley values for Neural Conditioner
 for i in range(len(nc_shapley_values)): 
     nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(nc_shapley_values, state_feature_names, row_name="NC", data_file_prefix="cartpole")
-print("Characteristic value of empty set : ", nc_char_dict[empty_set_mask])
 
 print("\nCalculating Shapley values based on VAEAC...")
-vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath, env, policy, vaeac.generate_probable_sample, 10, local_sverl_value_function, starting_state)
-vaeac_shapley_values = np.zeros(len(state_feature_names)) 
+vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath,
+                                                  env,
+                                                  policy,
+                                                  vaeac.generate_probable_sample,
+                                                  eval_rounds,
+                                                  global_sverl_value_function)
 
+
+# Shapley values for VAEAC
 for i in range(len(vaeac_shapley_values)): 
     vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(vaeac_shapley_values, state_feature_names, row_name="VAEAC", data_file_prefix="cartpole")
-print("Characteristic value of empty set : ", vaeac_char_dict[empty_set_mask])
+

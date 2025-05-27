@@ -59,18 +59,19 @@ def plot_data(df: pl.DataFrame,
     plt.axhline(0, color='black', linewidth=0.5)
     plt.ylabel('Shapley Value')
     plt.title('Shapley Values with Reference Lines')
-    plt.legend()
+    plt.legend(loc='upper left')
     plt.grid()
     plt.tight_layout()
 
     # Save the plot
     if not os.path.exists('plots'):
         os.makedirs('plots')
-    save_path = os.path.join('plots', 'shapley_values_plot.png')
+    save_path = os.path.join('plots', save_name)
     plt.savefig(save_path)
 
 if __name__ == "__main__":
     # Plot the data
-    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
+    # df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
+    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values_27-05.csv'))
     plot_data(df, 'shapley_values_plot.png')
     print("Plot saved successfully.")
