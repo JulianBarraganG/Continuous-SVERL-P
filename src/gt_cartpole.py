@@ -15,10 +15,10 @@ state_space_dim = env.observation_space.shape[0] # State space dimension
 shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
 empty_set_mask = np.array([0,0,0,0]).tobytes()
 num_eval_eps = 10
-num_train_eps = 1
+num_models = 10
 
 # Get the ground truth characteristic dictionary
-characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent, num_eval_eps, num_train_eps, model_filepath)
+characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent, num_eval_eps, num_models, model_filepath)
 
 # Calculate the Shapley values for each feature
 for i in range(state_space_dim):

@@ -67,10 +67,10 @@ def shapley_value(i, characteristic_dict):
 
 def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
                                 training_function: callable, no_evaluation_episodes: int, 
-                                no_train_episodes: int, model_filepath: str | None = None) -> dict:
+                                num_models: int, model_filepath: str | None = None) -> dict:
     
     """ 
-    Get the dictionary of characteristic values for all coalitions.
+    Get the dictionary of characteristic values for all coalitions based on 'ground truth' models.
     If model_filepath is not None, the policy trained on the full coalition will be saved to that path.
     This can guarantee that the ground-truth shapley values is calculated on the same 
     policy that is used when calculating shapley values via the imputation methods. 
@@ -83,13 +83,14 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
         Policy class to be trained. I think this should actually be a class 
     training_function : callable
     no_evaluation_episodes : int
-    no_train_episodes : int
+    num_models: int
     model_filepath : str | None            
             Path to save the policy trained on the full coalition. If None, the policy will not be saved.
     
     returns
     -------
     dict
+        Dictionary of characteristic values for all coalitions.
     """
 
     if exists(savepath):
@@ -103,24 +104,30 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     all_coalitions = np.array(get_all_subsets([], state_feature_size))
 
     def compute_characteristic(mask):
-        def train_and_evaluate_single_run():
-            state_space_dimension = np.sum(mask)
-            policy = policy_class(state_space_dimension, action_space_dimension)
-            trained_policy = training_function(policy, env, mask=mask)
+        """Compute the characteristic function on avg"""
+        state_space_dimension = np.sum(mask)
+        policy = policy_class(state_space_dimension, action_space_dimension)
+        trained_policies = [training_function(policy, env, mask=mask) for _ in range(num_models)]
+        avg_performances = np.zeros(num_models)
+        
+        # For each trained policy, evaluate each () and pick best on avg
+        for i, policy in enumerate(trained_policies):
+            performance_i = evaluate_policy(no_evaluation_episodes, env, policy, mask=mask)
+            avg_performances[i] = np.mean(performance_i)
 
-            if model_filepath is not None:
-                if state_space_dimension == env.observation_space.shape[0]:
-                    if not exists(model_filepath):
-                        print(f"saving policy at: {model_filepath}")
-                        pickle.dump(trained_policy, open(model_filepath, "wb")) #saving the policy
-            return np.mean(evaluate_policy(no_evaluation_episodes, env, trained_policy, mask))
+        # Save model trained on the full set
+        if model_filepath is not None:
+            if state_space_dimension == env.observation_space.shape[0]:
+                if not exists(model_filepath):
+                    print(f"saving policy at: {model_filepath}")
+                    best_idx = np.argmax(avg_performances)
+                    best_policy = trained_policies[best_idx]
+                    pickle.dump(best_policy, open(model_filepath, "wb")) #saving the policy
 
-        rewards = Parallel(n_jobs=-1)(
-            delayed(train_and_evaluate_single_run)()
-            for _ in range(no_train_episodes)
-        )
+        best_on_avg = np.max(avg_performances)
 
-        return (mask.tobytes(), np.mean(rewards))
+        return (mask.tobytes(), best_on_avg)
+
 
     results = Parallel(n_jobs=-1)(
         delayed(compute_characteristic)(mask)
@@ -133,8 +140,9 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     return characteristic_dict
 
 
-def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, imputation_fnc: callable,
-                                no_evaluation_episodes: int, char_val_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
+def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, 
+                                    imputation_fnc: callable, no_evaluation_episodes: int,
+                                    char_val_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
     
     """ 
     Get the dictionary of characteristic values for all coalitions, using an imputation function.
@@ -167,7 +175,7 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, i
     def compute_characteristic(mask):
         reward = 0
         for seed in range(no_evaluation_episodes): 
-            if starting_state.any() != None: 
+            if starting_state != None: 
                 reward += char_val_fnc(policy, starting_state, imputation_fnc, mask, env)
             else:
                 reward += char_val_fnc(policy, seed, imputation_fnc, mask, env)
