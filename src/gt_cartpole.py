@@ -14,10 +14,11 @@ state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Ang
 state_space_dim = env.observation_space.shape[0] # State space dimension
 shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
 empty_set_mask = np.array([0,0,0,0]).tobytes()
-num_eval_eps = 10
+num_eval_eps = 50
 num_models = 10
 
 # Get the ground truth characteristic dictionary
+print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for GT Cartpole...")
 characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent, num_eval_eps, num_models, model_filepath)
 
 # Calculate the Shapley values for each feature

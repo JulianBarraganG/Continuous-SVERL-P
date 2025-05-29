@@ -204,13 +204,12 @@ def load_vaeac(savepath: str,
         vaeac = pickle.load(open(savepath, "rb"))
         return vaeac
 
-#### THE FOLLOWING TWO FUNCTIONS ARE SORT OF MISPLACED, REFACTORING COULD BE IN ORDER ####
-def get_policy_and_trajectory(policy,
-                             env,
-                             model_filepath, 
-                             trajectory_filename,
-                             training_function,
-                             gen_and_save_trajectory=True):
+def get_policy_and_trajectory(policy: callable,
+                              env: Env,
+                              model_filepath: str,
+                              trajectory_filename: str,
+                              training_function: callable,
+                              gen_and_save_trajectory: bool = True):
     """
     Checks if the model and trajectory files exist, otherwise trains and saves them.
     NB: that this function will always return the policy,
@@ -279,7 +278,8 @@ def get_policy_and_trajectory(policy,
 def evaluate_policy(no_episodes: int,
                     env: Env,
                     policy: callable,
-                    mask: list[int]|None = None) -> np.ndarray: 
+                    mask: list[int]|None = None,
+                    verbose: bool = False) -> np.ndarray: 
     """
     Evaluate the policy by running it in the environment for a number of episodes.
 
@@ -294,32 +294,54 @@ def evaluate_policy(no_episodes: int,
     rewards : numpy.ndarray
         The rewards obtained by the policy in each episode.
     """
-    rewards = []
-    if mask is not None:
-        mask = np.array(mask).astype(bool)
-    # Check and see what type (np.ndarray or torch.Tensor) policy expects the state to be
-    try:
-        dummy_state = env.reset()[0]
-        policy(torch.as_tensor(dummy_state))
-        expects_torch = True
-    except:
-        expects_torch = False
+    # rewards = []
+    # if mask is not None:
+    #     mask = np.array(mask).astype(bool)
+    # # Check and see what type (np.ndarray or torch.Tensor) policy expects the state to be
+    # try:
+    #     dummy_state = env.reset()[0]
+    #     policy(torch.as_tensor(dummy_state))
+    #     expects_torch = True
+    # except:
+    #     expects_torch = False
 
-    for _ in trange(no_episodes):
-        r = 0
-        state = env.reset()[0]
+    # Pre-compute mask and tensor conversion requirements
+    mask = mask.astype(bool) if mask is not None else None
+    expects_torch = hasattr(policy, '__code__') and 'torch' in policy.__code__.co_names
+    
+    # Pre-allocate rewards array
+    rewards = np.empty(no_episodes, dtype=np.float32)
+    
+    # Cache environment reset and step methods
+    reset_fn = env.reset
+    step_fn = env.step
+    
+    # Determine state processing function
+    def process_state(state):
         if mask is not None:
             state = state[mask]
-        state = torch.as_tensor(state) if expects_torch else state
-        while True: 
-                state, reward, terminated, truncated, _ = env.step( policy(state) ) #  take a  action
-                if mask is not None:
-                    state = state[mask]
-                state = torch.as_tensor(state) if expects_torch else state
-                r += reward  # accumulate reward
-                if terminated or truncated:
-                    break
-        env.close()
-        rewards.append(r)
-    return np.array(rewards)  # return the cumulated reward
+        return torch.as_tensor(state) if expects_torch else state
+    
+    eval_range = trange(no_episodes, desc="Evaluating Policy") if verbose else range(no_episodes)
+    
+    for i in eval_range:
+        episode_reward = 0.0
+        state = process_state(reset_fn()[0])
+        
+        while True:
+            action = policy(state)
+            state, reward, terminated, truncated, _ = step_fn(action)
+            state = process_state(state)
+            episode_reward += reward
+            
+            if terminated or truncated:
+                break
+                
+        rewards[i] = episode_reward
+    
+    env.close()
+    if verbose:
+        print(f"Average reward over {no_episodes} episodes: {np.mean(rewards)}")
+        print(f"Standard deviation of rewards: {np.std(rewards)}")
+    return rewards
 

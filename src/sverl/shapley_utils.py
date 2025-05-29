@@ -2,6 +2,7 @@ from gymnasium import Env
 from math import factorial, log2
 import numpy as np
 
+from collections import defaultdict
 from joblib import Parallel, delayed
 from os.path import exists
 from os import makedirs
@@ -65,10 +66,10 @@ def shapley_value(i, characteristic_dict):
         sum += marginal_gain(C, i, characteristic_dict)*  normalization
     return sum
 
+
 def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
-                                training_function: callable, no_evaluation_episodes: int, 
-                                num_models: int, model_filepath: str | None = None) -> dict:
-    
+                               training_function: callable, no_evaluation_episodes: int, 
+                               num_models: int, model_filepath: str | None = None) -> dict:
     """ 
     Get the dictionary of characteristic values for all coalitions based on 'ground truth' models.
     If model_filepath is not None, the policy trained on the full coalition will be saved to that path.
@@ -92,50 +93,61 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     dict
         Dictionary of characteristic values for all coalitions.
     """
-
+    
     if exists(savepath):
         return pickle.load(open(savepath, "rb"))
 
     if not exists("characteristic_dicts"):
         makedirs("characteristic_dicts")
 
-    action_space_dimension = env.action_space.n - 1
+    action_space_dim = env.action_space.n - 1
     state_feature_size = env.observation_space.shape[0]
     all_coalitions = np.array(get_all_subsets([], state_feature_size))
 
-    def compute_characteristic(mask):
-        """Compute the characteristic function on avg"""
-        state_space_dimension = np.sum(mask)
-        policy = policy_class(state_space_dimension, action_space_dimension)
-        trained_policies = [training_function(policy, env, mask=mask) for _ in range(num_models)]
-        avg_performances = np.zeros(num_models)
+    def process_task(mask):
+        """Process a single (coalition, model) training/evaluation task"""
+        policy = policy_class(mask.sum(), action_space_dim)
+        trained_policy = training_function(policy, env, mask=mask)
+        performance = evaluate_policy(no_evaluation_episodes, env, trained_policy, mask=mask, verbose=1)
+        mean_perf = np.mean(performance)
         
-        # For each trained policy, evaluate each () and pick best on avg
-        for i, policy in enumerate(trained_policies):
-            performance_i = evaluate_policy(no_evaluation_episodes, env, policy, mask=mask)
-            avg_performances[i] = np.mean(performance_i)
+        # Track if we need to save this policy (full coalition only)
+        save_policy = (model_filepath is not None) and mask.all()
+        return (
+            mask.tobytes(),  # Key for aggregation
+            mean_perf,
+            trained_policy if save_policy else None
+        )
 
-        # Save model trained on the full set
-        if model_filepath is not None:
-            if state_space_dimension == env.observation_space.shape[0]:
-                if not exists(model_filepath):
-                    print(f"saving policy at: {model_filepath}")
-                    best_idx = np.argmax(avg_performances)
-                    best_policy = trained_policies[best_idx]
-                    pickle.dump(best_policy, open(model_filepath, "wb")) #saving the policy
-
-        best_on_avg = np.max(avg_performances)
-
-        return (mask.tobytes(), best_on_avg)
-
-
-    results = Parallel(n_jobs=-1)(
-        delayed(compute_characteristic)(mask)
-        for mask in all_coalitions
+    # Execute all tasks in parallel
+    results = Parallel(n_jobs=-1, verbose=10)(
+        delayed(process_task)(coalition)
+        for coalition in all_coalitions
     )
 
-    characteristic_dict = dict(results)
+    # Aggregate results and find maximum performance per coalition
+    mask_performances = defaultdict(list)
+    full_coalition_candidates = []
 
+    for mask_bytes, mean_perf, policy in results:
+        mask_performances[mask_bytes].append(mean_perf)
+        if policy is not None:
+            full_coalition_candidates.append((mean_perf, policy))
+
+    # Create final characteristic dictionary
+    characteristic_dict = {
+        mask: max(perfs) 
+        for mask, perfs in mask_performances.items()
+    }
+
+    # Save best policy for full coalition if needed
+    if model_filepath and full_coalition_candidates:
+        best_perf, best_policy = max(full_coalition_candidates, key=lambda x: x[0])
+        if not exists(model_filepath):
+            print(f"Saving best policy to {model_filepath}")
+            pickle.dump(best_policy, open(model_filepath, "wb"))
+
+    # Save results and return
     pickle.dump(characteristic_dict, open(savepath, "wb"))
     return characteristic_dict
 
