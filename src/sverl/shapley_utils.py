@@ -66,7 +66,6 @@ def shapley_value(i, characteristic_dict):
         sum += marginal_gain(C, i, characteristic_dict)*  normalization
     return sum
 
-
 def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
                                training_function: callable, no_evaluation_episodes: int, 
                                num_models: int, model_filepath: str | None = None) -> dict:
@@ -108,7 +107,8 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
         """Process a single (coalition, model) training/evaluation task"""
         policy = policy_class(mask.sum(), action_space_dim)
         trained_policy = training_function(policy, env, mask=mask)
-        performance = evaluate_policy(no_evaluation_episodes, env, trained_policy, mask=mask, verbose=1)
+        performance = evaluate_policy(no_evaluation_episodes, env, trained_policy,
+                                      mask=mask, verbose=True)
         mean_perf = np.mean(performance)
         
         # Track if we need to save this policy (full coalition only)
@@ -186,11 +186,11 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
 
     def compute_characteristic(mask):
         reward = 0
-        for seed in range(no_evaluation_episodes): 
-            if starting_state != None: 
+        for _ in range(no_evaluation_episodes): 
+            if starting_state != None: # Local SVERL
                 reward += char_val_fnc(policy, starting_state, imputation_fnc, mask, env)
-            else:
-                reward += char_val_fnc(policy, seed, imputation_fnc, mask, env)
+            else:                      # Global SVERL
+                reward += char_val_fnc(policy, imputation_fnc, mask, env)
         return (mask.tobytes(), reward/no_evaluation_episodes)
 
     results = Parallel(n_jobs=-1)(

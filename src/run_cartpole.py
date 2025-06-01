@@ -1,13 +1,15 @@
 import gymnasium as gym  # Defines RL environments
 from os.path import join, exists
 import numpy as np
-
+from datetime import datetime
+from gt_cartpole import get_gt_cartpole
 from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from vaeac.train_utils import TrainingArgs
 
 from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
 from sverl.sverl_utils import report_sverl_p, global_sverl_value_function, local_sverl_value_function
+from sverl.plotting import plot_data_from_id
 
 
 ########################################## VARIABLE DECLARATIONS ##########################################
@@ -70,12 +72,22 @@ else:
 vaeac.cpu()
 
 ########################## CALC AND REPORT SHAPLEY VALUES ##########################
+# Shapley values over 1.000 rounds
+eval_rounds = 10**3  # Number of evaluation rounds for MC estimation
+num_gt_models = 2**4 # 16 models
+
+### Create a time based identity for storing data
+dt = datetime.now()
+id = dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
+
+### Get GT models and Shapley values
+gt_shap = get_gt_cartpole(num_eval_eps=eval_rounds, num_models=num_gt_models)
+report_sverl_p(gt_shap, state_feature_names, row_name="GT_CP", data_file_name="cartpole" + id)
 
 # Instantiate shapley value arrays and variables
 nc_shapley_values = np.zeros(len(state_feature_names)) 
 vaeac_shapley_values = np.zeros(len(state_feature_names)) 
 rs_shapley_values = np.zeros(len(state_feature_names)) 
-eval_rounds = 10  # Number of evaluation rounds for each imputation method
 
 # For local
 starting_state = np.array([1,0,0,0], dtype = np.int32)
@@ -91,7 +103,7 @@ rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath,
 # Shapley values for Random Sampler
 for i in range(len(rs_shapley_values)): 
     rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(rs_shapley_values, state_feature_names, row_name="RS", data_file_prefix="cartpole")
+report_sverl_p(rs_shapley_values, state_feature_names, row_name="RS", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
 nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
@@ -104,7 +116,7 @@ nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
 # Shapley values for Neural Conditioner
 for i in range(len(nc_shapley_values)): 
     nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(nc_shapley_values, state_feature_names, row_name="NC", data_file_prefix="cartpole")
+report_sverl_p(nc_shapley_values, state_feature_names, row_name="NC", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on VAEAC...")
 vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath,
@@ -118,5 +130,8 @@ vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_file
 # Shapley values for VAEAC
 for i in range(len(vaeac_shapley_values)): 
     vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(vaeac_shapley_values, state_feature_names, row_name="VAEAC", data_file_prefix="cartpole")
+report_sverl_p(vaeac_shapley_values, state_feature_names, row_name="VAEACpython", data_file_name="cartpole" + id)
+
+# Plot experiment results
+plot_data_from_id("cartpole" + id, "cartpole_results" + id)
 

@@ -5,7 +5,10 @@ import numpy as np
 
 def get_csv_data(csv_file_name: str) -> pl.DataFrame:
     """Read the csv file into polars DataFrame, keeping the first column as row names."""
-    return pl.read_csv(csv_file_name, has_header=False)
+    suffix = csv_file_name[-4:-1]
+    csv_file_name += ".csv" if suffix != ".csv" else csv_file_name
+    save_path = os.path.join('data', csv_file_name)
+    return pl.read_csv(save_path, has_header=False)
 
 
 def plot_data(df: pl.DataFrame, 
@@ -69,9 +72,23 @@ def plot_data(df: pl.DataFrame,
     save_path = os.path.join('plots', save_name)
     plt.savefig(save_path)
 
+def plot_data_from_id(csv_filename:str,
+                      plot_save_name: str,
+                      avoid_zero_div: bool = False
+                      ) -> None:
+    """
+    Uses helper functions plotting.plot_data and plotting.get_csv_data,
+    to plot data from csv files. ID is contained in the csv filename.
+    """
+    # Regex to ofilter the id at the end of csv_filename
+    df = get_csv_data(csv_filename)
+    plot_data(df, plot_save_name, avoid_zero_division=avoid_zero_div) 
+
+
+
 if __name__ == "__main__":
     # Plot the data
-    # df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
-    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values_27-05.csv'))
+    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
+    # df = get_csv_data(os.path.join('data', 'cartpole_shapley_values_27-05.csv'))
     plot_data(df, 'shapley_values_plot.png')
     print("Plot saved successfully.")

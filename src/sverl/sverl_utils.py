@@ -1,4 +1,5 @@
 import csv
+from gymnasium import Env
 import numpy as np
 import os
 
@@ -41,13 +42,15 @@ def local_sverl_value_function(policy, initial_state, imputation_fnc, mask, env)
     env.close()
     return R  # Return the cumulated reward
 
-def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
+def global_sverl_value_function(policy: callable, 
+                                imputation_fnc: callable,
+                                mask: np.ndarray, env: Env
+                                ) -> float:
     """
     Evaluate the policy with missing features, using the believed state to make the decision.
     Parameters
     ----------
     policy : callable
-    seed : int
     imputation_fnc : callable
     mask : np.ndarray
     env : gym.Env
@@ -56,7 +59,8 @@ def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
     R : float
         The cumulated reward
     """
-    R = 0
+    R = 0.
+    seed = 42 # should be global, but 42 here and in evaluate policy
     true_state = env.reset(seed=seed)[0]  # Forget about previous episode
     
     believed_state = imputation_fnc(true_state.flatten(), mask)  
@@ -65,7 +69,7 @@ def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
         a = policy(believed_state)
         
         state, reward, terminated, truncated, _ = env.step(a)  # Simulate pole
-        R+=reward
+        R += float(reward)
         believed_state = imputation_fnc(state.flatten(), mask)
        
         if(terminated or truncated): 
@@ -76,7 +80,7 @@ def global_sverl_value_function(policy, seed, imputation_fnc, mask, env):
 
 def report_sverl_p(shapley_values: np.ndarray,
                     state_feature_names: list[str],
-                   data_file_prefix: str = "",
+                   data_file_name: str = "",
                     row_name: str | None = None,
                    verbose: bool = True) -> None:
     """
@@ -88,8 +92,12 @@ def report_sverl_p(shapley_values: np.ndarray,
         Shapley values for each state feature.
     state_feature_names : list[str]
         Names of the state features.
+    data_file_name : str
+        File will be saved at data_file_name.csv
+    row_name : str | None
+    verbose : bool (default true)
     """
-    data_file_name = data_file_prefix + "_shapley_values.csv"
+    csv_save_name = data_file_name + ".csv"
 
     # Print the Shapley values.
     if verbose:
@@ -99,11 +107,11 @@ def report_sverl_p(shapley_values: np.ndarray,
 
     # Write to csv file.
     if row_name is not None:
-        if data_file_prefix == "":
-            raise ValueError("data_file_prefix must be specified if row_name is provided.")
+        if data_file_name == "":
+            raise ValueError("data_file_name must be specified if row_name is provided.")
         if not os.path.exists("data"):
             os.makedirs("data")
-        file_path = os.path.join("data", data_file_name)
+        file_path = os.path.join("data", csv_save_name)
         row = [row_name] + shapley_values.tolist()
         with open(file_path, mode='a', newline='') as file:
             writer = csv.writer(file)

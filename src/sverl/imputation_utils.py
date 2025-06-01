@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from gymnasium import Env
 from os import makedirs
 from os.path import exists, join
@@ -63,7 +64,7 @@ def get_trajectory(policy: callable,
         the trajectory features, shape (t, d), where t is the time horizon and d is the state space dimension
     """
     trajectory_features = []  # store the features of the trajectory
-    state = env.reset()[0]  # forget about previous episode    
+    state = env.reset()[0]  # forget about previous episode, and sample s_0 ~ p_0 
     
     for _ in trange(time_horizon):     
 
@@ -305,8 +306,12 @@ def evaluate_policy(no_episodes: int,
     # except:
     #     expects_torch = False
 
+    # Set an environment reset seed. We want unbiased estimate of policy.
+    # I.e. s_0 is always the same, and not sampled from p_0
+    reset_seed = 42 # should be global, but 42 here and in evaluate policy
+
     # Pre-compute mask and tensor conversion requirements
-    mask = mask.astype(bool) if mask is not None else None
+    mask = mask.astype(bool) if mask is not None else None # type: ignore
     expects_torch = hasattr(policy, '__code__') and 'torch' in policy.__code__.co_names
     
     # Pre-allocate rewards array
@@ -326,13 +331,13 @@ def evaluate_policy(no_episodes: int,
     
     for i in eval_range:
         episode_reward = 0.0
-        state = process_state(reset_fn()[0])
+        state = process_state(reset_fn(seed=reset_seed)[0])
         
         while True:
             action = policy(state)
             state, reward, terminated, truncated, _ = step_fn(action)
             state = process_state(state)
-            episode_reward += reward
+            episode_reward += float(reward)
             
             if terminated or truncated:
                 break
@@ -341,7 +346,7 @@ def evaluate_policy(no_episodes: int,
     
     env.close()
     if verbose:
-        print(f"Average reward over {no_episodes} episodes: {np.mean(rewards)}")
-        print(f"Standard deviation of rewards: {np.std(rewards)}")
+        print(f"Average reward over {no_episodes} episodes: {np.mean(rewards):2f}")
+        print(f"Standard deviation of rewards: {np.std(rewards):.2f}")
     return rewards
 

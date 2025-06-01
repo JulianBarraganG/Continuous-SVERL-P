@@ -6,26 +6,41 @@ from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.sverl_utils import report_sverl_p
 from sverl.shapley_utils import get_gt_characteristic_dict, shapley_value
 
-# Instantiating variables
-env = make("CartPole-v1")
-savepath = join("characteristic_dicts", "gt_cartpole_characteristic_dict.pkl")
-model_filepath = join("models", "cartpole_policy.pkl")
-state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
-state_space_dim = env.observation_space.shape[0] # State space dimension
-shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
-empty_set_mask = np.array([0,0,0,0]).tobytes()
-num_eval_eps = 50
-num_models = 10
+def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
+    """
+    Get GT Cartpole estimations.
 
-# Get the ground truth characteristic dictionary
-print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for GT Cartpole...")
-characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent, num_eval_eps, num_models, model_filepath)
+    Parameters
+    ----------
+    num_eval_eps : int
+    num_models : int
 
-# Calculate the Shapley values for each feature
-for i in range(state_space_dim):
-    shapley_values[i] = shapley_value(i, characteristic_dict)  # Calculate Shapley value for each feature
-empty_set_val = characteristic_dict[empty_set_mask]  # Get the value of the empty set
+    Returns
+    -------
+    shapley_values : np.ndarray
+    """
+    # Instantiating variables
+    env = make("CartPole-v1")
+    savepath = join("characteristic_dicts", "gt_cartpole_characteristic_dict.pkl")
+    model_filepath = join("models", "cartpole_policy.pkl")
+    state_space_dim = env.observation_space.shape[0] # State space dimension #type: ignore
+    shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
 
-# Report the SVERL-P values
-report_sverl_p(shapley_values, state_feature_names, row_name="GT_CP", data_file_prefix="cartpole")
+    # Get the ground truth characteristic dictionary
+    print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for GT Cartpole...")
+    characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent, num_eval_eps, num_models, model_filepath)
+
+    # Calculate the Shapley values for each feature
+    for i in range(state_space_dim):
+        shapley_values[i] = shapley_value(i, characteristic_dict)  # Calculate Shapley value for each feature
+
+    # Empty set available, not currently used
+    # empty_set_mask = np.array([0,0,0,0]).tobytes()
+    # empty_set_val = characteristic_dict[empty_set_mask]  # Get the value of the empty set
+
+    return shapley_values
+
+if __name__ == "__main__":
+    print("Purely for testing, 1 model 1 eval")
+    get_gt_cartpole(num_eval_eps=1, num_models=1) 
 
