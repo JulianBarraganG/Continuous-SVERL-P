@@ -14,7 +14,7 @@ state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Ang
 state_space_dim = env.observation_space.shape[0] # State space dimension
 shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
 empty_set_mask = np.array([0,0,0,0]).tobytes()
-num_eval_eps = 50
+num_eval_eps = 100
 num_models = 10
 
 # Get the ground truth characteristic dictionary

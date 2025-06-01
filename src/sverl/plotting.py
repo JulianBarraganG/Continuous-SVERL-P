@@ -52,7 +52,7 @@ def plot_data(df: pl.DataFrame,
         x_min = x_positions[col_idx] - (n_bars_per_column/2) * bar_width
         x_max = x_positions[col_idx] + (n_bars_per_column/2) * bar_width
         plt.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
-                 label='Through-line' if col_idx == 0 else "")
+                 label='Ground truth' if col_idx == 0 else "")
 
     # Plot configs
     plt.xticks(x_positions, labels=state_feature_names)
@@ -72,6 +72,6 @@ def plot_data(df: pl.DataFrame,
 if __name__ == "__main__":
     # Plot the data
     # df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
-    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values_27-05.csv'))
+    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
     plot_data(df, 'shapley_values_plot.png')
     print("Plot saved successfully.")

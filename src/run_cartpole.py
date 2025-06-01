@@ -21,6 +21,8 @@ empty_set_mask = np.array([0,0,0,0]).tobytes()
 
 action_space_dimension = env.action_space.n - 1 # This is the dimension, not the size 
 state_space_dimension = env.observation_space.shape[0]
+eval_rounds = 100  # Number of evaluation rounds for each imputation method
+trajectory_size = 10**6
 
 # CartPole one hot max sizes are all 0-s,
 # since each feature is continous (i.e. real)
@@ -48,7 +50,9 @@ policy, trajectory = get_policy_and_trajectory(policy,
                                               model_filepath,
                                               trajectory_filename,
                                               train_cartpole_agent,
-                                              gen_and_save_trajectory=feature_imputation_model_missing)
+                                              gen_and_save_trajectory=feature_imputation_model_missing, 
+                                              no_evaluation_episodes= eval_rounds, 
+                                              no_states_in_trajectories=trajectory_size)
 
 if feature_imputation_model_missing:
     batch_size = 32
@@ -75,7 +79,6 @@ vaeac.cpu()
 nc_shapley_values = np.zeros(len(state_feature_names)) 
 vaeac_shapley_values = np.zeros(len(state_feature_names)) 
 rs_shapley_values = np.zeros(len(state_feature_names)) 
-eval_rounds = 10  # Number of evaluation rounds for each imputation method
 
 # For local
 starting_state = np.array([1,0,0,0], dtype = np.int32)
