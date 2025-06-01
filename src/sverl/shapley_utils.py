@@ -144,6 +144,8 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     if model_filepath and full_coalition_candidates:
         best_perf, best_policy = max(full_coalition_candidates, key=lambda x: x[0])
         if not exists(model_filepath):
+            if not exists("models"):
+                makedirs("models")
             print(f"Saving best policy to {model_filepath}")
             pickle.dump(best_policy, open(model_filepath, "wb"))
 

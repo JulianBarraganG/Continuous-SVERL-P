@@ -210,7 +210,9 @@ def get_policy_and_trajectory(policy: callable,
                               model_filepath: str,
                               trajectory_filename: str,
                               training_function: callable,
-                              gen_and_save_trajectory: bool = True):
+                              gen_and_save_trajectory: bool = True, 
+                              no_evaluation_episodes = 100, 
+                              no_states_in_trajectories = 10**6):
     """
     Checks if the model and trajectory files exist, otherwise trains and saves them.
     NB: that this function will always return the policy,
@@ -244,7 +246,7 @@ def get_policy_and_trajectory(policy: callable,
 
         # check that policy learned
         print("evaluating policy...")
-        no_evaluation_episodes = 100
+        no_evaluation_episodes = no_evaluation_episodes
         reward = evaluate_policy(no_evaluation_episodes, env, policy) #evaluating the policy
         print("average reward when running ", no_evaluation_episodes, " episodes: ", np.mean(reward)) #printing the average reward
         print("standard deviation when running ", no_evaluation_episodes, " episodes:: ", np.std(reward)) #printing the standard deviation of the reward
@@ -254,7 +256,7 @@ def get_policy_and_trajectory(policy: callable,
         # generate and save trajectory
         if gen_and_save_trajectory:
             print("generating trajectory...")
-            trajectory = get_trajectory(policy, env, time_horizon = 10**5) #running the agent for 20 times, and storing the results
+            trajectory = get_trajectory(policy, env, time_horizon = no_states_in_trajectories) #running the agent for 20 times, and storing the results
             # save trajectory to a csv file
             save_trajectory(trajectory, trajectory_filename, delimiter=',') # saved at data/cartpole_trajectory.csv
             print("trajectory saved at: ", trajectory_filename)
@@ -268,7 +270,7 @@ def get_policy_and_trajectory(policy: callable,
         print("loading trajectory...")
         if gen_and_save_trajectory:
             print("generating trajectory...")
-            trajectory = get_trajectory(policy, env, time_horizon = 10**5) #running the agent for 20 times, and storing the results
+            trajectory = get_trajectory(policy, env, time_horizon = no_states_in_trajectories) #running the agent for 20 times, and storing the results
             # save trajectory to a csv file
             save_trajectory(trajectory, trajectory_filename, delimiter=',') # saved at data/cartpole_trajectory.csv
             print("trajectory saved at: ", trajectory_filename)
