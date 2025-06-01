@@ -3,19 +3,20 @@ from os.path import join, exists
 import numpy as np
 from datetime import datetime
 from gt_cartpole import get_gt_cartpole
-from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
-from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from vaeac.train_utils import TrainingArgs
 
+from sverl.OffRandomSampler import OffRandomSampler
+from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
+from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
 from sverl.sverl_utils import report_sverl_p, global_sverl_value_function, local_sverl_value_function
 from sverl.plotting import plot_data_from_id
+from sverl.globalvars import *
 
 
 ########################################## VARIABLE DECLARATIONS ##########################################
 #### Environment specific variables ####
 # Define the groups for group Shapley values
-state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
 G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
 env = gym.make('CartPole-v1')
 
@@ -38,6 +39,7 @@ rs_filepath = join("imputation_models", "cartpole_rs.pkl")
 nc_filepath = join("imputation_models", "cartpole_nc.pkl")
 vaeac_filepath = join("imputation_models", "cartpole_vaeac.pkl")
 rs_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_rs_characteristic_dict.pkl")
+ors_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_ors_characteristic_dict.pkl")
 nc_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
 vaeac_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
 
@@ -71,14 +73,15 @@ else:
     nc = load_neural_conditioner(nc_filepath)
     rs = load_random_sampler(rs_filepath)
     vaeac = load_vaeac(vaeac_filepath)
+ors = OffRandomSampler(CP_RANGES)
 
 # Move trained model to CPU
 vaeac.cpu()
 
 ########################## CALC AND REPORT SHAPLEY VALUES ##########################
 # Shapley values over 1.000 rounds
-eval_rounds = 10**3  # Number of evaluation rounds for MC estimation
-num_gt_models = 2**4 # 16 models
+eval_rounds = 1  # Number of evaluation rounds for MC estimation
+num_gt_models = 1 # 16 models
 
 ### Create a time based identity for storing data
 dt = datetime.now()
@@ -86,12 +89,13 @@ id = dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of di
 
 ### Get GT models and Shapley values
 gt_shap = get_gt_cartpole(num_eval_eps=eval_rounds, num_models=num_gt_models)
-report_sverl_p(gt_shap, state_feature_names, row_name="GT_CP", data_file_name="cartpole" + id)
+report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name="cartpole" + id)
 
 # Instantiate shapley value arrays and variables
-nc_shapley_values = np.zeros(len(state_feature_names)) 
-vaeac_shapley_values = np.zeros(len(state_feature_names)) 
-rs_shapley_values = np.zeros(len(state_feature_names)) 
+nc_shapley_values = np.zeros(state_space_dimension) 
+vaeac_shapley_values = np.zeros(state_space_dimension) 
+rs_shapley_values = np.zeros(state_space_dimension) 
+ors_shapley_values = np.zeros(state_space_dimension)
 
 # For local
 starting_state = np.array([1,0,0,0], dtype = np.int32)
@@ -107,7 +111,20 @@ rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath,
 # Shapley values for Random Sampler
 for i in range(len(rs_shapley_values)): 
     rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(rs_shapley_values, state_feature_names, row_name="RS", data_file_name="cartpole" + id)
+report_sverl_p(rs_shapley_values, CP_STATE_FEATURE_NAMES, row_name="RS", data_file_name="cartpole" + id)
+
+print("Calculating Shapley values based on OffRandomSampler...")
+ors_char_dict = get_imputed_characteristic_dict(ors_characteristic_dict_filepath, 
+                                               env,
+                                               policy,
+                                               ors.pred,
+                                               eval_rounds, 
+                                               global_sverl_value_function)
+
+# Shapley values for Off-Manifoldl Random Sampler
+for i in range(len(ors_shapley_values)): 
+    ors_shapley_values[i] = shapley_value(i, ors_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(ors_shapley_values, CP_STATE_FEATURE_NAMES, row_name="ORS", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
 nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
@@ -120,7 +137,7 @@ nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
 # Shapley values for Neural Conditioner
 for i in range(len(nc_shapley_values)): 
     nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(nc_shapley_values, state_feature_names, row_name="NC", data_file_name="cartpole" + id)
+report_sverl_p(nc_shapley_values, CP_STATE_FEATURE_NAMES, row_name="NC", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on VAEAC...")
 vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath,
@@ -134,7 +151,7 @@ vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_file
 # Shapley values for VAEAC
 for i in range(len(vaeac_shapley_values)): 
     vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(vaeac_shapley_values, state_feature_names, row_name="VAEACpython", data_file_name="cartpole" + id)
+report_sverl_p(vaeac_shapley_values, CP_STATE_FEATURE_NAMES, row_name="VAEAC", data_file_name="cartpole" + id)
 
 # Plot experiment results
 plot_data_from_id("cartpole" + id, "cartpole_results" + id)

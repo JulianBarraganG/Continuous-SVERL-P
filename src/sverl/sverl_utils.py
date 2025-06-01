@@ -3,7 +3,11 @@ from gymnasium import Env
 import numpy as np
 import os
 
-def local_sverl_value_function(policy, initial_state, imputation_fnc, mask, env):
+def local_sverl_value_function(policy: callable,
+                               initial_state: np.ndarray,
+                               imputation_fnc: callable,
+                               mask: np.ndarray,
+                               env: Env) -> float:
     """
     Evaluate the policy from a given state, using the believed state to make the initial decision
     Parameters

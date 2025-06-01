@@ -46,12 +46,12 @@ def plot_data(df: pl.DataFrame,
         for bar_idx in range(n_bars_per_column):
             x = x_positions[col_idx] + (bar_idx - (n_bars_per_column-1)/2) * bar_width
             value = normalized_df.row(bar_idx + 1)[col_idx]  # +1 to skip through-line row/col
-            bar = plt.bar(x, value, width=bar_width, color=colors[bar_idx], 
+            plt.bar(x, value, width=bar_width, color=colors[bar_idx], 
                         label=bar_labels[bar_idx] if col_idx == 0 else "")
 
     # Plot through-lines
     for col_idx in range(n_columns):
-        line_value = normalized_df.row(0)[col_idx]
+        line_value = row_names[col_idx]
         x_min = x_positions[col_idx] - (n_bars_per_column/2) * bar_width
         x_max = x_positions[col_idx] + (n_bars_per_column/2) * bar_width
         plt.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
