@@ -282,7 +282,8 @@ def evaluate_policy(no_episodes: int,
                     env: Env,
                     policy: callable,
                     mask: list[int]|None = None,
-                    verbose: bool = False) -> np.ndarray: 
+                    verbose: bool = False, 
+                    reset_seed : int | None = None) -> np.ndarray: 
     """
     Evaluate the policy by running it in the environment for a number of episodes.
 
@@ -291,6 +292,7 @@ def evaluate_policy(no_episodes: int,
     no_episodes : int
     env : Env
     policy : callable
+    reset_seed : int
 
     Returns
     -------
@@ -310,7 +312,6 @@ def evaluate_policy(no_episodes: int,
 
     # Set an environment reset seed. We want unbiased estimate of policy.
     # I.e. s_0 is always the same, and not sampled from p_0
-    reset_seed = 42 # should be global, but 42 here and in evaluate policy
 
     # Pre-compute mask and tensor conversion requirements
     mask = mask.astype(bool) if mask is not None else None # type: ignore
@@ -333,7 +334,7 @@ def evaluate_policy(no_episodes: int,
     
     for i in eval_range:
         episode_reward = 0.0
-        state = process_state(reset_fn(seed=reset_seed)[0])
+        state = process_state(reset_fn(seed=reset_seed)[0]) if reset_seed != None else process_state(reset_fn()[0])
         
         while True:
             action = policy(state)
