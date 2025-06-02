@@ -1,3 +1,18 @@
+# VAEAC - Variational Autoencoder with Arbitrary Conditioning
+
+The following module is an adaptation, by Oskar Linke and Julian Barragan, of the publicly available code that accompanies the paper:
+Oleg Ivanov, Michael Figurnov, Dmitry Vetrov.
+Variational Autoencoder with Arbitrary Conditioning, ICLR 2019,
+[link](https://arxiv.org/abs/1806.02382).
+
+It is modified here to work as a feature imputation tool.
+Specifically to compute the intractable limiting state occupancy distribution, in order to perform Shapley Values for Explanations Reinforcement Learning (SVERL) as described in the paper:
+Daniel Beechey, Thomas M. S. Smith, Ozgur Simsek.
+Explaining Reinforcement Learning with Shapley Values,
+[link](https://arxiv.org/abs/1806.02382).
+
+The original README.md is as follows:
+
 # Variational Autoencoder with Arbitrary Conditioning
 
 Variational Autoencoder with Arbitrary Conditioning (VAEAC) is

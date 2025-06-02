@@ -10,7 +10,7 @@ import pickle
 import tqdm as tqdm
 from operator import itemgetter
 
-from .group_utils import get_all_subsets
+from .group_utils import get_all_group_subsets, get_all_subsets, get_limited_subsets
 from .imputation_utils import evaluate_policy
 from .globalvars import RESET_SEED 
 
@@ -42,7 +42,7 @@ def marginal_gain(C, i, characteristic_dict):
     return V_C_i - V_C 
 
 #Calculates Shapley values for a feature, using the marginal gain function and the get_all_subsets function.
-def shapley_value(i, characteristic_dict):
+def shapley_value(i: int, characteristic_dict: dict) -> float:
     """
     Calculate the Shapley value for a feature using the marginal gain function and the get_all_subsets function.
 
@@ -58,7 +58,7 @@ def shapley_value(i, characteristic_dict):
         Shapley value for the feature.
     """
     F = int(log2(len(characteristic_dict)))  # Number of features
-    list_of_C = np.array(get_all_subsets([i], F))
+    list_of_C = np.array(get_limited_subsets([i], F), dtype=int)
     sum = 0
     for C in list_of_C:
         cardinality = np.sum(C)  # Cardinality of the coalition
@@ -70,7 +70,9 @@ def shapley_value(i, characteristic_dict):
 
 def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
                                training_function: callable, no_evaluation_episodes: int, 
-                               num_models: int, model_filepath: str | None = None) -> dict:
+                               num_models: int,
+                               G: list | None = None,
+                               model_filepath: str | None = None) -> dict:
     """ 
     Get the dictionary of characteristic values for all coalitions based on 'ground truth' models.
     If model_filepath is not None, the policy trained on the full coalition will be saved to that path.
@@ -86,6 +88,8 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     training_function : callable
     no_evaluation_episodes : int
     num_models: int
+    G: list | None
+        If G is none, each feature is a group i.e. no groups.
     model_filepath : str | None            
             Path to save the policy trained on the full coalition. If None, the policy will not be saved.
     
@@ -102,8 +106,9 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
         makedirs("characteristic_dicts")
 
     action_space_dim = env.action_space.n - 1
-    state_feature_size = env.observation_space.shape[0]
-    all_coalitions = np.array(num_models * get_all_subsets([], state_feature_size))
+    state_space_dim = env.observation_space.shape[0]
+    all_coalitions = get_all_group_subsets(G) if G else get_all_subsets(state_space_dim)
+    models_by_coalitions = np.array(num_models * all_coalitions) # num_models * all_coalitions
 
     def process_task(mask):
         """Process a single (coalition, model) training/evaluation task"""
@@ -128,7 +133,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     # Execute all tasks in parallel
     results = Parallel(n_jobs=-1, verbose=10)(
         delayed(process_task)(coalition)
-        for coalition in all_coalitions
+        for coalition in models_by_coalitions
     )
 
     # Aggregate results and find maximum performance per coalition
@@ -163,7 +168,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, 
                                     imputation_fnc: callable, no_evaluation_episodes: int,
                                     char_val_fnc: callable,
-                                    G: list = [],
+                                    G: list[int] | None = None,
                                     starting_state: np.ndarray | None = None) -> dict:
     
     """ 
@@ -190,9 +195,9 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
     if not exists("characteristic_dicts"):
         makedirs("characteristic_dicts")
 
-    action_space_dimension = env.action_space.n - 1
-    state_feature_size = env.observation_space.shape[0]
-    all_coalitions = np.array(get_all_subsets(G, state_feature_size))
+    state_space_dim = env.observation_space.shape[0] # type: ignore
+    all_coalitions = get_all_group_subsets(G) if G else get_all_subsets(state_space_dim)
+    all_coalitions = np.array(all_coalitions)
 
     def compute_characteristic(mask):
         reward = 0
@@ -203,7 +208,7 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
                 reward += char_val_fnc(policy, imputation_fnc, mask, env)
         return (mask.tobytes(), reward/no_evaluation_episodes)
 
-    results = Parallel(n_jobs=-1)(
+    results = Parallel(n_jobs=-1, verbose=2)(
         delayed(compute_characteristic)(mask)
         for mask in all_coalitions
     )

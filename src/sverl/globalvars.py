@@ -1,3 +1,5 @@
+import numpy as np
+
 RESET_SEED = 42
 CP_STATE_FEATURE_NAMES = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
 CP_RANGES = [(-2.4, 2.4), ("ninf", "inf"), (-0.2095, 0.2095), ("ninf", "inf")]

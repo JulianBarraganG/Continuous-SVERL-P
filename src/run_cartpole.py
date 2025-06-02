@@ -19,12 +19,13 @@ from sverl.globalvars import *
 # Define the groups for group Shapley values
 env = gym.make('CartPole-v1')
 
-empty_set_mask = np.array([0,0,0,0]).tobytes()
-
 action_space_dimension = env.action_space.n - 1 # This is the dimension, not the size 
 state_space_dimension = env.observation_space.shape[0]
-eval_rounds = 100  # Number of evaluation rounds for each imputation method
-trajectory_size = 10**6
+
+# Experiment variablse
+eval_rounds = 10**3 # Number of evaluation rounds for each imputation method
+num_gt_models = 16 # Number of competing GT models per coalition
+trajectory_size = 10**5 # Number of sampled trajectories for pi^\star (best policy)
 
 # CartPole one hot max sizes are all 0-s,
 # since each feature is continous (i.e. real)
@@ -41,6 +42,13 @@ rs_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_rs_char
 ors_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_ors_characteristic_dict.pkl")
 nc_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
 vaeac_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
+
+
+
+########################################## TRAIN MODELS AND IMPUTERS ##########################################
+
+### Get GT models and Shapley values
+gt_shap = get_gt_cartpole(num_eval_eps=eval_rounds, num_models=num_gt_models)
 
 # Check if the model and trajectory files exist, otherwise train and save them
 feature_imputation_model_missing = not(exists(rs_filepath) 
@@ -78,19 +86,15 @@ ors = OffRandomSampler(CP_RANGES)
 vaeac.cpu()
 
 ########################## CALC AND REPORT SHAPLEY VALUES ##########################
-# Shapley values over 1.000 rounds
-eval_rounds = 10**3  # Number of evaluation rounds for MC estimation
-num_gt_models = 16
 
 ### Create a time based identity for storing data
 dt = datetime.now()
 id = dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
 
-### Get GT models and Shapley values
-gt_shap = get_gt_cartpole(num_eval_eps=eval_rounds, num_models=num_gt_models)
+print("Calculating Shapley values based on Ground Truth models...")
 report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name="cartpole" + id)
 
-# Instantiate shapley value arrays and variables
+### Instantiate shapley value arrays and variables
 nc_shapley_values = np.zeros(state_space_dimension) 
 vaeac_shapley_values = np.zeros(state_space_dimension) 
 rs_shapley_values = np.zeros(state_space_dimension) 

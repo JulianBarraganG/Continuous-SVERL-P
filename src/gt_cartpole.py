@@ -30,7 +30,7 @@ def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
     if not exists(model_filepath):
         print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for GT Cartpole...")
     characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent,
-                                                     num_eval_eps, num_models, model_filepath)
+                                                     num_eval_eps, num_models, model_filepath=model_filepath)
 
     # Calculate the Shapley values for each feature
     for i in range(state_space_dim):
@@ -44,5 +44,5 @@ def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
 
 if __name__ == "__main__":
     print("Running 'gt_cartpole.py' directly. Purely for testing.")
-    get_gt_cartpole(num_eval_eps=1, num_models=1) 
+    report_sverl_p(get_gt_cartpole(num_eval_eps=1, num_models=1), ["a","b","c","d"])
 
