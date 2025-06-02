@@ -12,6 +12,7 @@ from operator import itemgetter
 
 from .group_utils import get_all_subsets
 from .imputation_utils import evaluate_policy
+from .globalvars import RESET_SEED 
 
 
 def marginal_gain(C, i, characteristic_dict):
@@ -103,7 +104,6 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     action_space_dim = env.action_space.n - 1
     state_feature_size = env.observation_space.shape[0]
     all_coalitions = np.array(num_models * get_all_subsets([], state_feature_size))
-    reset_seed = 42
 
     def process_task(mask):
         """Process a single (coalition, model) training/evaluation task"""
@@ -113,7 +113,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
                                       mask=mask)
         mean_perf = np.mean(performance)
         seed_perf = evaluate_policy(1, env, trained_policy,
-                                      mask=mask, reset_seed=reset_seed)
+                                      mask=mask, reset_seed=RESET_SEED)
 
         
         # Track if we need to save this policy (full coalition only)
@@ -136,7 +136,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     full_coalition_candidates = []
 
     for mask_bytes, mean_perf, seed_perf, policy in results:
-        mask_performances[mask_bytes].append(mean_perf, seed_perf)
+        mask_performances[mask_bytes].append((mean_perf, seed_perf))
         if policy is not None:
             full_coalition_candidates.append((mean_perf, seed_perf, policy))
 
@@ -148,7 +148,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 
     # Save best policy for full coalition if needed
     if model_filepath and full_coalition_candidates:
-        best_perf, best_policy = max(full_coalition_candidates, key=lambda x: x[0])
+        _, _, best_policy = max(full_coalition_candidates, key=lambda x: x[0])
         if not exists(model_filepath):
             if not exists("models"):
                 makedirs("models")
@@ -162,7 +162,9 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
 
 def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable, 
                                     imputation_fnc: callable, no_evaluation_episodes: int,
-                                    char_val_fnc: callable, starting_state: np.ndarray | None = None) -> dict:
+                                    char_val_fnc: callable,
+                                    G: list = [],
+                                    starting_state: np.ndarray | None = None) -> dict:
     
     """ 
     Get the dictionary of characteristic values for all coalitions, using an imputation function.
@@ -190,7 +192,7 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
 
     action_space_dimension = env.action_space.n - 1
     state_feature_size = env.observation_space.shape[0]
-    all_coalitions = np.array(get_all_subsets([], state_feature_size))
+    all_coalitions = np.array(get_all_subsets(G, state_feature_size))
 
     def compute_characteristic(mask):
         reward = 0

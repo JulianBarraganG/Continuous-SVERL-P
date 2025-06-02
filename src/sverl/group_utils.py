@@ -88,7 +88,7 @@ def get_all_group_subsets(G: list,
     for l, rnoget in enumerate(r):
         p_i = np.ones(n)
         for i in range(k):
-            # loop over every j feature index in the i-th group.
+            # Loop over every j feature index in the i-th group.
             for j in G[i]: 
                 p_i[j] = rnoget[i]
         permutations[l] = p_i

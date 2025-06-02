@@ -17,7 +17,6 @@ from sverl.globalvars import *
 ########################################## VARIABLE DECLARATIONS ##########################################
 #### Environment specific variables ####
 # Define the groups for group Shapley values
-G = [[0, 2], [1, 3]]  # Grouped positional features and grouped velocity features
 env = gym.make('CartPole-v1')
 
 empty_set_mask = np.array([0,0,0,0]).tobytes()
@@ -80,8 +79,8 @@ vaeac.cpu()
 
 ########################## CALC AND REPORT SHAPLEY VALUES ##########################
 # Shapley values over 1.000 rounds
-eval_rounds = 1  # Number of evaluation rounds for MC estimation
-num_gt_models = 1 # 16 models
+eval_rounds = 10**3  # Number of evaluation rounds for MC estimation
+num_gt_models = 16
 
 ### Create a time based identity for storing data
 dt = datetime.now()

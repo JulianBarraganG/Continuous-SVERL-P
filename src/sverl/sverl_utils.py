@@ -3,6 +3,8 @@ from gymnasium import Env
 import numpy as np
 import os
 
+from .globalvars import RESET_SEED
+
 def local_sverl_value_function(policy: callable,
                                initial_state: np.ndarray,
                                imputation_fnc: callable,
@@ -64,8 +66,7 @@ def global_sverl_value_function(policy: callable,
         The cumulated reward
     """
     R = 0.
-    seed = 42 # should be global, but 42 here and in evaluate policy
-    true_state = env.reset(seed=seed)[0]  # Forget about previous episode
+    true_state = env.reset(seed=RESET_SEED)[0]  # Forget about previous episode
     
     believed_state = imputation_fnc(true_state.flatten(), mask)  
 
