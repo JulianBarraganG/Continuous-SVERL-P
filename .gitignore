@@ -1,5 +1,6 @@
 papers/
 *.pdf
+*.png
 */logs/
 src/data/
 src/models/
@@ -8,3 +9,4 @@ src/imputation_models/
 *outcmaes/
 */characteristic_dicts/
 */plots
+exp*/

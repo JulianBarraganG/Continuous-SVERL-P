@@ -1,5 +1,5 @@
 import gymnasium as gym  # Defines RL environments
-from os.path import join, exists
+from os.path import exists
 import numpy as np
 from datetime import datetime
 from gt_cartpole import get_gt_cartpole
@@ -22,65 +22,45 @@ env = gym.make('CartPole-v1')
 action_space_dimension = env.action_space.n - 1 # This is the dimension, not the size 
 state_space_dimension = env.observation_space.shape[0]
 
-# Experiment variablse
-eval_rounds = 10**3 # Number of evaluation rounds for each imputation method
-num_gt_models = 16 # Number of competing GT models per coalition
-trajectory_size = 10**5 # Number of sampled trajectories for pi^\star (best policy)
-
 # CartPole one hot max sizes are all 0-s,
 # since each feature is continous (i.e. real)
-cp_one_hot_max_sizes = [0, 0, 0, 0]
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
-
-#### Filepaths for pkls and csv data ####
-model_filepath = join("models", "cartpole_policy.pkl")
-trajectory_filename = "cartpole_trajectory"
-rs_filepath = join("imputation_models", "cartpole_rs.pkl")
-nc_filepath = join("imputation_models", "cartpole_nc.pkl")
-vaeac_filepath = join("imputation_models", "cartpole_vaeac.pkl")
-rs_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_rs_characteristic_dict.pkl")
-ors_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_ors_characteristic_dict.pkl")
-nc_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
-vaeac_characteristic_dict_filepath = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
-
 
 
 ########################################## TRAIN MODELS AND IMPUTERS ##########################################
 
 ### Get GT models and Shapley values
-gt_shap = get_gt_cartpole(num_eval_eps=eval_rounds, num_models=num_gt_models)
+gt_shap = get_gt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_GT_MODELS)
 
 # Check if the model and trajectory files exist, otherwise train and save them
-feature_imputation_model_missing = not(exists(rs_filepath) 
-                                       and exists(nc_filepath) 
-                                       and exists(vaeac_filepath))
+feature_imputation_model_missing = not(exists(PI_SMP_FILEPATH) 
+                                       and exists(NC_FILEPATH) 
+                                       and exists(VAEAC_FILEPATH))
 
 # We assume trajectory file is csv
 policy, trajectory = get_policy_and_trajectory(policy,
                                               env,
-                                              model_filepath,
-                                              trajectory_filename,
+                                              MODEL_FILEPATH,
+                                              TRAJECTORY_FILENAME,
                                               train_cartpole_agent,
                                               gen_and_save_trajectory=feature_imputation_model_missing, 
-                                              no_evaluation_episodes= eval_rounds, 
-                                              no_states_in_trajectories=trajectory_size)
+                                              no_evaluation_episodes= EVAL_ROUNDS, 
+                                              no_states_in_trajectories=TRAJECTORY_SIZE)
 
 if feature_imputation_model_missing:
-    batch_size = 32
-    dataset = StateFeatureDataset(trajectory, batch_size=batch_size, shuffle=True)
+    dataset = StateFeatureDataset(trajectory, batch_size=BATCH_SIZE, shuffle=True)
     dataloader = dataset.dataloader
     input_dim = state_space_dimension  # size of the data
-    # TODO: Investigate appropriate latent_dim in both cart pole lunar lander
-    latent_dim = 64  # Size of the latent space
 
-    nc = load_neural_conditioner(nc_filepath, input_dim=input_dim, latent_dim=latent_dim, dataloader=dataloader)
-    rs = load_random_sampler(rs_filepath, trajectory=trajectory)
-    vaeac = load_vaeac(vaeac_filepath, data=trajectory, args=TrainingArgs(), one_hot_max_sizes=cp_one_hot_max_sizes)
+    nc = load_neural_conditioner(NC_FILEPATH, input_dim=input_dim, latent_dim=CP_LATENT_DIM, dataloader=dataloader)
+    pi_smp = load_random_sampler(PI_SMP_FILEPATH, trajectory=trajectory)
+    vaeac = load_vaeac(VAEAC_FILEPATH, data=trajectory, args=TrainingArgs(), 
+                       one_hot_max_sizes=CP_ONE_HOT_MAX_SIZES, nn_size_dict=CP_VAEAC_NN_SIZE_DICT)
 else: 
-    nc = load_neural_conditioner(nc_filepath)
-    rs = load_random_sampler(rs_filepath)
-    vaeac = load_vaeac(vaeac_filepath)
-ors = OffRandomSampler(CP_RANGES)
+    nc = load_neural_conditioner(NC_FILEPATH)
+    pi_smp = load_random_sampler(PI_SMP_FILEPATH)
+    vaeac = load_vaeac(VAEAC_FILEPATH)
+unif = OffRandomSampler(CP_RANGES)
 
 # Move trained model to CPU
 vaeac.cpu()
@@ -97,65 +77,67 @@ report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name
 ### Instantiate shapley value arrays and variables
 nc_shapley_values = np.zeros(state_space_dimension) 
 vaeac_shapley_values = np.zeros(state_space_dimension) 
-rs_shapley_values = np.zeros(state_space_dimension) 
-ors_shapley_values = np.zeros(state_space_dimension)
+pi_smp_shapley_values = np.zeros(state_space_dimension) 
+unif_shapley_values = np.zeros(state_space_dimension)
 
-# For local
-starting_state = np.array([1,0,0,0], dtype = np.int32)
 
 print("Calculating Shapley values based on RandomSampler...")
-rs_char_dict = get_imputed_characteristic_dict(rs_characteristic_dict_filepath, 
+pi_smp_char_dict = get_imputed_characteristic_dict(PI_SMP_CHARACTERISITIC_DICT_FILEPATH,
                                                env,
                                                policy,
-                                               rs.pred,
-                                               eval_rounds, 
+                                               pi_smp.pred,
+                                               EVAL_ROUNDS, 
                                                global_sverl_value_function)
 
 # Shapley values for Random Sampler
-for i in range(len(rs_shapley_values)): 
-    rs_shapley_values[i] = shapley_value(i, rs_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(rs_shapley_values, CP_STATE_FEATURE_NAMES, row_name="RS", data_file_name="cartpole" + id)
+for i in range(state_space_dimension):
+    pi_smp_shapley_values[i] = shapley_value(i, pi_smp_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(pi_smp_shapley_values, CP_STATE_FEATURE_NAMES, row_name="PI_SMP", data_file_name="cartpole" + id)
 
 print("Calculating Shapley values based on OffRandomSampler...")
-ors_char_dict = get_imputed_characteristic_dict(ors_characteristic_dict_filepath, 
+unif_char_dict = get_imputed_characteristic_dict(UNIF_CHARACTERISITIC_DICT_FILEPATH,
                                                env,
                                                policy,
-                                               ors.pred,
-                                               eval_rounds, 
+                                               unif.pred,
+                                               EVAL_ROUNDS, 
                                                global_sverl_value_function)
 
-# Shapley values for Off-Manifoldl Random Sampler
-for i in range(len(ors_shapley_values)): 
-    ors_shapley_values[i] = shapley_value(i, ors_char_dict)  # Calculate Shapley value for each feature
-report_sverl_p(ors_shapley_values, CP_STATE_FEATURE_NAMES, row_name="ORS", data_file_name="cartpole" + id)
+# Shapley values for Off-Manifold Random Sampler
+for i in range(state_space_dimension):
+    unif_shapley_values[i] = shapley_value(i, unif_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(unif_shapley_values, CP_STATE_FEATURE_NAMES, row_name="UNIF", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on NeuralConditioner...")
-nc_char_dict = get_imputed_characteristic_dict(nc_characteristic_dict_filepath,
+nc_char_dict = get_imputed_characteristic_dict(NC_CHARACTERISITIC_DICT_FILEPATH,
                                                env,
                                                policy,
                                                nc.pred,
-                                               eval_rounds,
+                                               EVAL_ROUNDS,
                                                global_sverl_value_function)
 
 # Shapley values for Neural Conditioner
-for i in range(len(nc_shapley_values)): 
+for i in range(state_space_dimension):
     nc_shapley_values[i] = shapley_value(i, nc_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(nc_shapley_values, CP_STATE_FEATURE_NAMES, row_name="NC", data_file_name="cartpole" + id)
 
 print("\nCalculating Shapley values based on VAEAC...")
-vaeac_char_dict = get_imputed_characteristic_dict(vaeac_characteristic_dict_filepath,
+vaeac_char_dict = get_imputed_characteristic_dict(VAEAC_CHARACTERISITIC_DICT_FILEPATH,
                                                   env,
                                                   policy,
                                                   vaeac.generate_probable_sample,
-                                                  eval_rounds,
+                                                  EVAL_ROUNDS,
                                                   global_sverl_value_function)
 
 
 # Shapley values for VAEAC
-for i in range(len(vaeac_shapley_values)): 
+for i in range(state_space_dimension): 
     vaeac_shapley_values[i] = shapley_value(i, vaeac_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(vaeac_shapley_values, CP_STATE_FEATURE_NAMES, row_name="VAEAC", data_file_name="cartpole" + id)
 
 # Plot experiment results
-plot_data_from_id("cartpole" + id, "cartpole_results" + id)
+plot_suffix = ("LD_" + str(CP_LATENT_DIM) + "_W_" 
+               + str(CP_VAEAC_NN_SIZE_DICT["width"]) +
+               "_D_" + str(CP_VAEAC_NN_SIZE_DICT["depth"]))
+
+plot_data_from_id("cartpole" + id, "cartpole_results" + plot_suffix)
 

@@ -61,8 +61,8 @@ def plot_data(df: pl.DataFrame,
     # Plot configs
     plt.xticks(x_positions, labels=state_feature_names)
     plt.axhline(0, color='black', linewidth=0.5)
-    plt.ylabel('Shapley Value')
-    plt.title('Shapley Values with Reference Lines')
+    plt.ylabel('Normalized Shapley Value')
+    plt.title('Shapley Values for Cartpole State Features')
     plt.legend(loc='upper left')
     plt.grid()
     plt.tight_layout()

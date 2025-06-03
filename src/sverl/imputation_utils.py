@@ -13,6 +13,7 @@ from tqdm import trange
 from .NeuralConditioner import NC, Discriminator, train_nc
 from .RandomSampler import RandomSampler
 from vaeac.train_utils import TrainingArgs, get_vaeac
+from vaeac.VAEAC import VAEAC
 
 class StateFeatureDataset(Dataset):
     def __init__(self, data, batch_size=32, shuffle=False):
@@ -111,26 +112,28 @@ def save_trajectory(trajectories: np.ndarray,
 def load_neural_conditioner(filepath: str,
                             input_dim: int|None = None, 
                             latent_dim: int|None = None,
-                            dataloader: DataLoader|None = None) -> object:
+                            dataloader: DataLoader|None = None) -> NC:
     """
     Loads the neural conditioner from the given filepath, or creates and saves it,
     if it doesn't exist.
 
     Parameters
     ----------
-    filepath: path to the neural conditioner model
-    input_dim: input dimension of the neural conditioner
-    latent_dim: latent dimension of the neural conditioner
-    dataloader: dataloader for training the neural conditioner
+    filepath : str 
+    input_dim : int 
+    latent_dim : int 
+    dataloader : DataLoader
 
     Returns
     -------
-    nc: loaded neural conditioner model
+    NC
+        Loaded neural conditioner model
     """
     if not exists("imputation_models"):
         makedirs("imputation_models")
 
-    if not exists(filepath):
+    # If pkl doesn't exist, input params should be 
+    if not exists(filepath) and latent_dim != None:
         nc = NC(input_dim, latent_dim)
         discriminator = Discriminator(input_dim)
         print("Training Neural Conditioner...")
@@ -174,7 +177,8 @@ def load_random_sampler(filepath, trajectory=None):
 def load_vaeac(savepath: str, 
               data: str | np.ndarray | None = None,
               args: TrainingArgs | None = None,
-              one_hot_max_sizes: list | None = None):
+              one_hot_max_sizes: list | None = None,
+              nn_size_dict: dict | None = None) -> VAEAC:
     """
     Given a specification on state feature data types, and trajectory data file path,
     this function will train a VAEAC model on the data, and return the VAEAC model.
@@ -196,7 +200,7 @@ def load_vaeac(savepath: str,
 
     if not exists(savepath):
         print("Training VAEAC...")
-        vaeac = get_vaeac(args, one_hot_max_sizes, data)
+        vaeac = get_vaeac(args, one_hot_max_sizes, data, nn_size_dict)
         pickle.dump(vaeac, open(savepath, "wb"))
         print(f"VAEAC saved at: {savepath}")
         return vaeac

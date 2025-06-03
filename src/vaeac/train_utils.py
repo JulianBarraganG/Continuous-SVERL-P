@@ -83,7 +83,8 @@ def get_validation_iwae(val_dataloader, mask_generator, batch_size,
             iterator.set_description('Validation IWAE: %g' % avg_iwae)
     return float(avg_iwae)
 
-def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarray):
+def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list[int],
+              data: str | np.ndarray, nn_size_dict: dict[str, int]) -> VAEAC:
     """
     given a specification on state feature data types, and trajectory data file path,
     this function will train a vaeac model on the data, and return the vaeac model.
@@ -92,6 +93,9 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
     args : TrainingArgs
     one_hot_max_sizes : list
     data : str | np.ndarray
+    nn_size_dict : dict[str, int]
+        NN dictionary, containing sizes for architecture.
+        - 'width'
     returns
     -------
     vaeac : vaeac
@@ -109,14 +113,14 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
     else:
         raw_data = data
 
-    networks = get_imputation_networks(one_hot_max_sizes)
+    networks = get_imputation_networks(one_hot_max_sizes, nn_size_dict)
 
     args = TrainingArgs()
 
     raw_data = torch.from_numpy(raw_data).float()
     norm_mean, norm_std = compute_normalization(raw_data, one_hot_max_sizes)
     norm_std = torch.max(norm_std, torch.tensor(1e-9))
-    data = (raw_data - norm_mean[None]) / norm_std[None]
+    data = (raw_data - norm_mean[None]) / norm_std[None] # type: ignore
 
     # default parameters which are not supposed to be changed from user interface
     use_cuda = torch.cuda.is_available()
@@ -231,12 +235,12 @@ def get_vaeac(args: TrainingArgs, one_hot_max_sizes: list, data: str | np.ndarra
             # update running variational lower bound average
             avg_vlb += (float(vlb) - avg_vlb) / (i + 1)
             if verbose:
-                iterator.set_description('Train VLB: %g' % avg_vlb)
+                iterator.set_description('Train VLB: %g' % avg_vlb) # type: ignore
 
     # if use doesn't set use_last_checkpoint flag,
     # use the best model according to the validation IWAE
     if not args.use_last_checkpoint:
-        model.load_state_dict(best_state['model_state_dict'])
+        model.load_state_dict(best_state['model_state_dict']) # type: ignore
 
     return model
 

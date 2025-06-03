@@ -9,14 +9,16 @@ import numpy as np
 #It is a basically a variational autoencoder with GAN-like training, where the generator is a neural conditioner, and the discriminator is a neural network that tries to distinguish between real and fake data.
 
 class NC(nn.Module):
-    def __init__(self, input_dim, latent_dim=64):
+    def __init__(self, input_dim, latent_dim):
         """
         Neural Conditioner (NC) model for missing data imputation. We use it to predict missing features in a state vector.
         
         Parameters
         ----------
-            input_dim (int): Dimension of the input data.
-            latent_dim (int): Dimension of the latent space. Should typically be smaller than input_dim.
+        input_dim : int 
+            Dimension of the input data.
+        latent_dim : int
+            Dimension of the latent space. Should typically be smaller than input_dim.
         """
         super().__init__()
         self.input_dim = input_dim
@@ -42,13 +44,17 @@ class NC(nn.Module):
 
         Parameters
         ----------
-            x_a (torch.Tensor): Observed features (input_dim).
-            a (torch.Tensor): Mask indicating observed features (input_dim).
-            r (torch.Tensor): Mask indicating missing features (input_dim).
+        x_a : torch.Tensor
+            Observed features (input_dim).
+        a : torch.Tensor
+            Mask indicating observed features (input_dim).
+        r : torch.Tensor 
+            Mask indicating missing features (input_dim).
 
         Returns
         -------
-            torch.Tensor: Reconstructed features (input_dim).
+        torch.Tensor
+            Reconstructed features (input_dim).
         """
         # Input shapes: [batch_size, input_dim] for x_a, a, r
         # z shape: [batch_size, latent_dim]
@@ -98,7 +104,8 @@ class Discriminator(nn.Module):
         
         Parameters
         ----------
-            input_dim (int): Dimension of the input data.
+        input_dim : int
+            Dimension of the input data.
         """
         super().__init__()
         # Input: [x_r (input_dim) + x_a (input_dim) + a (input_dim) + r (input_dim)] = 4*input_dim
@@ -117,13 +124,18 @@ class Discriminator(nn.Module):
         
         Parameters
         ----------
-            x_r (torch.Tensor): Reconstructed features (input_dim).
-            x_a (torch.Tensor): Observed features (input_dim).
-            a (torch.Tensor): Mask indicating observed features (input_dim).
-            r (torch.Tensor): Mask indicating missing features (input_dim).
+        x_r : torch.Tensor 
+            Reconstructed features (input_dim).
+        x_a : torch.Tensor
+            Observed features (input_dim).
+        a : torch.Tensor
+            Mask indicating observed features (input_dim).
+        r : torch.Tensor
+            Mask indicating missing features (input_dim).
         Returns
         -------
-            torch.Tensor: Discriminator output (probability of being real).
+        torch.Tensor
+            Discriminator output (probability of being real).
         """
         inputs = torch.cat([x_r, x_a, a, r], dim=1)
         return self.net(inputs)
@@ -134,10 +146,14 @@ def train_nc(nc, discriminator, dataloader, epochs):
     
     Parameters
     ----------
-        nc (NC): Parametrized Neural Conditioner model.
-        discriminator (Discriminator): Parametrized Discriminator model.
-        dataloader (DataLoader): DataLoader for the training data.
-        epochs (int): Number of training epochs.
+    nc : NC
+        Parametrized Neural Conditioner model.
+    discriminator : Discriminator
+        Parametrized Discriminator model.
+    dataloader : DataLoader
+        DataLoader for the training data.
+    epochs : int 
+        Number of training epochs.
     """
     nc.train()
     discriminator.train()
