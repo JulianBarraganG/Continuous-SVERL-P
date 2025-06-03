@@ -76,9 +76,8 @@ class NC(nn.Module):
         a = torch.FloatTensor(mask)
         r = 1 - a  # Predict missing features
         
-        # Generate predictions (multiple samples for uncertainty)
+        # Generate predictions
         with torch.no_grad():
-            z = torch.randn(self.latent_dim)
             x_a = x_a.unsqueeze(0)
             a = a.unsqueeze(0)
             r = r.unsqueeze(0)
