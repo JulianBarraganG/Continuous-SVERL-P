@@ -29,14 +29,14 @@ class NC(nn.Module):
             nn.Linear(128, latent_dim)
         )
         
-        # Decoder: [h (latent_dim) + x_a (input_dim) + a (input_dim) + r (input_dim)] = latent_dim + 3*input_dim
+        # Decoder: [h (latent_dim) + x_a (input_dim) + a (input_dim) + r (input_dim) + z (latent_dim)] = 2*latent_dim + 3*input_dim
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim + 3 * input_dim, 128),
+            nn.Linear(2*latent_dim + 3 * input_dim, 128),
             nn.ReLU(),
             nn.Linear(128, input_dim)
         )
     
-    def forward(self, x_a, a, r):
+    def forward(self, x_a, a, r, z):
         """
         Forward pass through the NC model.
 
@@ -54,9 +54,9 @@ class NC(nn.Module):
         # z shape: [batch_size, latent_dim]
         encoder_input = torch.cat([x_a, a, r], dim=1)
         h = self.encoder(encoder_input)
-        
-        decoder_input = torch.cat([h, x_a, a, r], dim=1)
-        return self.decoder(decoder_input) * r
+        decoder_input = torch.cat([h, x_a, a, r, z], dim=1)
+        decoder_output = self.decoder(decoder_input)
+        return decoder_output * r
 
     def pred(self, observed_features, mask): 
         """
@@ -81,7 +81,8 @@ class NC(nn.Module):
             x_a = x_a.unsqueeze(0)
             a = a.unsqueeze(0)
             r = r.unsqueeze(0)
-            pred = self(x_a, a, r).mean(0).numpy()
+            z = torch.randn(1, self.latent_dim)
+            pred = self(x_a, a, r, z).squeeze(0).numpy()
 
         for i in range(len(pred)):
             if mask[i] == 1: 
@@ -165,7 +166,8 @@ def train_nc(nc, discriminator, dataloader, epochs):
             # Generate samples
             #z = torch.randn(batch_size, nc.latent_dim)
             x_a = x_real * a
-            x_r_fake = nc(x_a, a, r)
+            z = torch.randn(batch_size, nc.latent_dim)
+            x_r_fake = nc(x_a, a, r, z)
             x_r_real = x_real * r
             
             # Train discriminator
