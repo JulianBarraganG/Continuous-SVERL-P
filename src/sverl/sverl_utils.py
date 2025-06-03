@@ -50,7 +50,8 @@ def local_sverl_value_function(policy: callable,
 
 def global_sverl_value_function(policy: callable, 
                                 imputation_fnc: callable,
-                                mask: np.ndarray, env: Env
+                                mask: np.ndarray, 
+                                env: Env
                                 ) -> float:
     """
     Evaluate the policy with missing features, using the believed state to make the decision.

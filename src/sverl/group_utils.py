@@ -3,6 +3,30 @@ import numpy as np
 #gets all subsets of masks when one feature is fixed to 0.
 #basically all c \in f/i 
 
+def get_limited_subsets(fixed_features: list[int], num_features: int) -> list[int]:
+    """
+    Generate a list of all mask permutations excluding feature group i.
+
+    Parameters
+    ----------
+    fixed_features : list
+    num_features : int
+    """
+    coalitions = []
+
+    # Index of every feature not in the list of 'fixed_features'
+    other_features = [idx for idx in range(num_features) if idx not in fixed_features] 
+    num_of = len(other_features) # Number of other features
+
+    for i in range(2 ** num_of):
+        binary = [0] * num_features
+        for bit_pos in range(num_of):
+            original_pos = other_features[bit_pos]
+            bit_value = (i >> (num_of - 1 - bit_pos)) & 1
+            binary[original_pos] = bit_value
+        coalitions.append(binary)
+    return coalitions
+
 def get_all_subsets(state_space_dim: int) -> list:
     """
     Generate all binary lists of given length with certain positions fixed to 0.
@@ -44,9 +68,7 @@ def get_all_group_subsets(G: list) -> np.ndarray:
 
     Parameters
     ----------
-    g : list
-    masked_group : int
-        the group that is fixed to 0
+    G : list
 
     Returns
     -------

@@ -37,6 +37,7 @@ def plot_data(df: pl.DataFrame,
     x_positions = np.arange(n_columns)
 
     # Colors and labels
+    # TODO: Add more colors for lunar lander and others
     colors = ['skyblue', 'salmon', 'lightgreen', 'gold', 'lightcoral'][:n_bars_per_column]
     state_feature_names = ["Cart Position", "Cart Velocity", "Pole Angle", "Pole Angular Velocity"]
     bar_labels = row_names[1:]  # Use row names (excluding first row) for bar labels
@@ -51,7 +52,7 @@ def plot_data(df: pl.DataFrame,
 
     # Plot through-lines
     for col_idx in range(n_columns):
-        line_value = row_names[col_idx]
+        line_value = normalized_df.row(0)[col_idx]
         x_min = x_positions[col_idx] - (n_bars_per_column/2) * bar_width
         x_max = x_positions[col_idx] + (n_bars_per_column/2) * bar_width
         plt.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
@@ -88,7 +89,6 @@ def plot_data_from_id(csv_filename:str,
 
 if __name__ == "__main__":
     # Plot the data
-    df = get_csv_data(os.path.join('data', 'cartpole_shapley_values.csv'))
-    # df = get_csv_data(os.path.join('data', 'cartpole_shapley_values_27-05.csv'))
-    plot_data(df, 'shapley_values_plot.png')
+    df = get_csv_data('cartpole2506021610')
+    plot_data(df, 'shapley_values_test_plot.png')
     print("Plot saved successfully.")
