@@ -5,7 +5,7 @@ from ttt_agent import Agent
 import NeuralConditioner 
 import shapley
 from tqdm import trange
-import RandomSampler
+import PiSampler 
 
 env = TTT()
 
@@ -33,7 +33,7 @@ trajectories = []
 for i in range(len(trajectories_unflattened)): 
     trajectories.append(trajectories_unflattened[i].flatten())
 
-rs = RandomSampler.RandomSampler(np.array(trajectories))
+rs = PiSampler.PiSampler(np.array(trajectories))
 
 #The i is the seed. This is the only way I know how to set the starting position 
 #We are doing 100 different seeds, and averaging the results.

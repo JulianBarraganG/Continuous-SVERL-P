@@ -5,7 +5,7 @@ from datetime import datetime
 from gt_cartpole import get_gt_cartpole
 from vaeac.train_utils import TrainingArgs
 
-from sverl.OffRandomSampler import OffRandomSampler
+from sverl.UnifSampler import UnifSampler
 from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
@@ -27,11 +27,23 @@ state_space_dimension = env.observation_space.shape[0]
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 
-########################################## TRAIN MODELS AND IMPUTERS ##########################################
+
+############################################# EXPERIMENT PREP #############################################
+##### Experiment number
+exp_num = 5
+print(f"Running experiment number {exp_num}...")
 
 ### Get GT models and Shapley values
 gt_shap = get_gt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_GT_MODELS)
 
+# Get the respective NN size dict and latend dimension
+cp_latent_dim = CP_LATENT_DIM[exp_num - 1]  # Latent dimension for VAEAC
+cp_vaeac_nn_size_dict = {}  # Neural network size for VAEAC
+
+for key in CP_VAEAC_NN_SIZE_DICT.keys():
+    cp_vaeac_nn_size_dict[key] = CP_VAEAC_NN_SIZE_DICT[key][exp_num - 1]
+
+###################################### TRAIN MODELS AND IMPUTERS ##########################################
 # Check if the model and trajectory files exist, otherwise train and save them
 feature_imputation_model_missing = not(exists(PI_SMP_FILEPATH) 
                                        and exists(NC_FILEPATH) 
@@ -52,15 +64,15 @@ if feature_imputation_model_missing:
     dataloader = dataset.dataloader
     input_dim = state_space_dimension  # size of the data
 
-    nc = load_neural_conditioner(NC_FILEPATH, input_dim=input_dim, latent_dim=CP_LATENT_DIM, dataloader=dataloader)
+    nc = load_neural_conditioner(NC_FILEPATH, input_dim=input_dim, latent_dim=cp_latent_dim, dataloader=dataloader)
     pi_smp = load_random_sampler(PI_SMP_FILEPATH, trajectory=trajectory)
     vaeac = load_vaeac(VAEAC_FILEPATH, data=trajectory, args=TrainingArgs(), 
-                       one_hot_max_sizes=CP_ONE_HOT_MAX_SIZES, nn_size_dict=CP_VAEAC_NN_SIZE_DICT)
+                       one_hot_max_sizes=CP_ONE_HOT_MAX_SIZES, nn_size_dict=cp_vaeac_nn_size_dict)
 else: 
     nc = load_neural_conditioner(NC_FILEPATH)
     pi_smp = load_random_sampler(PI_SMP_FILEPATH)
     vaeac = load_vaeac(VAEAC_FILEPATH)
-unif = OffRandomSampler(CP_RANGES)
+unif = UnifSampler(CP_RANGES)
 
 # Move trained model to CPU
 vaeac.cpu()
@@ -81,7 +93,7 @@ pi_smp_shapley_values = np.zeros(state_space_dimension)
 unif_shapley_values = np.zeros(state_space_dimension)
 
 
-print("Calculating Shapley values based on RandomSampler...")
+print("Calculating Shapley values based on PiSampler...")
 pi_smp_char_dict = get_imputed_characteristic_dict(PI_SMP_CHARACTERISITIC_DICT_FILEPATH,
                                                env,
                                                policy,
@@ -94,7 +106,7 @@ for i in range(state_space_dimension):
     pi_smp_shapley_values[i] = shapley_value(i, pi_smp_char_dict)  # Calculate Shapley value for each feature
 report_sverl_p(pi_smp_shapley_values, CP_STATE_FEATURE_NAMES, row_name="PI_SMP", data_file_name="cartpole" + id)
 
-print("Calculating Shapley values based on OffRandomSampler...")
+print("Calculating Shapley values based on UnifSampler...")
 unif_char_dict = get_imputed_characteristic_dict(UNIF_CHARACTERISITIC_DICT_FILEPATH,
                                                env,
                                                policy,
@@ -135,9 +147,9 @@ for i in range(state_space_dimension):
 report_sverl_p(vaeac_shapley_values, CP_STATE_FEATURE_NAMES, row_name="VAEAC", data_file_name="cartpole" + id)
 
 # Plot experiment results
-plot_suffix = ("LD_" + str(CP_LATENT_DIM) + "_W_" 
-               + str(CP_VAEAC_NN_SIZE_DICT["width"]) +
-               "_D_" + str(CP_VAEAC_NN_SIZE_DICT["depth"]))
+plot_suffix = ("LD_" + str(cp_latent_dim) + "_W_" 
+               + str(cp_vaeac_nn_size_dict["width"]) +
+               "_D_" + str(cp_vaeac_nn_size_dict["depth"]))
 
 plot_data_from_id("cartpole" + id, "cartpole_results" + plot_suffix)
 

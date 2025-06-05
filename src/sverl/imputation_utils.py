@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import trange
 
 from .NeuralConditioner import NC, Discriminator, train_nc
-from .RandomSampler import RandomSampler
+from .PiSampler import PiSampler 
 from vaeac.train_utils import TrainingArgs, get_vaeac
 from vaeac.VAEAC import VAEAC
 
@@ -164,13 +164,13 @@ def load_random_sampler(filepath, trajectory=None):
         makedirs("imputation_models")
 
     if not exists(filepath):
-        print("Training Random Sampler...")
-        rs = RandomSampler(trajectory)
+        print("Training Pi Sampler...")
+        rs = PiSampler(trajectory)
         pickle.dump(rs, open(filepath, "wb")) #saving the random sampler
-        print(f"Random Sampler saved at: {filepath}")
+        print(f"Pi Sampler saved at: {filepath}")
         return rs
     else: 
-        print("Loading Random Sampler...")
+        print("Loading Pi Sampler...")
         rs = pickle.load(open(filepath, "rb"))
         return rs
     

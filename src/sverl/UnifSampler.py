@@ -1,8 +1,10 @@
 import numpy as np
 
-class OffRandomSampler:
+class UnifSampler:
     """
-
+    Samples from the state space uniformly at random,
+    except it is constrained by the ranges provided.
+    These ranges are taken from 
     """
     def __init__(self, ranges: list[tuple[float, float]], null_value=0):
         self.ranges = ranges
