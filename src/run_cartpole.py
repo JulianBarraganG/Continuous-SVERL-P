@@ -30,7 +30,7 @@ policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 ############################################# EXPERIMENT PREP #############################################
 ##### Experiment number
-exp_num = 5
+exp_num = 4
 print(f"Running experiment number {exp_num}...")
 
 ### Get GT models and Shapley values
@@ -82,7 +82,7 @@ vaeac.cpu()
 ### Create a time based identity for storing data
 dt = datetime.now()
 id = "_exp_" + str(exp_num)  # Append experiment number to id
-id += dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
+id += "_" + dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
 
 print("Calculating Shapley values based on Ground Truth models...")
 report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name="cartpole" + id)

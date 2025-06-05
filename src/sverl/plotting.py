@@ -58,7 +58,14 @@ def plot_data(df: pl.DataFrame,
         plt.hlines(line_value, x_min, x_max, colors='red', linestyles='dashed', 
                  label='Ground truth' if col_idx == 0 else "")
 
+    # Make a check for min val in normalized_df
+    normalized_df_min = normalized_df.min().to_numpy().min()
+
     # Plot configs
+    y_min = normalized_df_min if normalized_df_min < -0.2 else -0.2
+    if y_min < -0.2:
+        print(f"WARNING: y_min is set to {y_min}, other plots need to be adjusted accordingly.")
+    plt.ylim(y_min, 1.)
     plt.xticks(x_positions, labels=state_feature_names)
     plt.axhline(0, color='black', linewidth=0.5)
     plt.ylabel('Normalized Shapley Value')
@@ -89,6 +96,7 @@ def plot_data_from_id(csv_filename:str,
 
 if __name__ == "__main__":
     # Plot the data
-    df = get_csv_data('cartpole2506021610')
-    plot_data(df, 'shapley_values_test_plot.png')
-    print("Plot saved successfully.")
+    save_name =  'CP_5LD_32_W_128_D_12'
+    df = get_csv_data('cartpole_exp_5_2506051142')
+    plot_data(df,save_name)
+    print(f"Plot saved successfully at 'plots/{save_name}.png'")

@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import product
 
 #gets all subsets of masks when one feature is fixed to 0.
 #basically all c \in f/i 
@@ -27,9 +28,9 @@ def get_limited_subsets(fixed_features: list[int], num_features: int) -> list[in
         coalitions.append(binary)
     return coalitions
 
-def get_all_subsets(state_space_dim: int) -> list:
+def get_all_subsets(state_space_dim: int) -> list[list[int]]:
     """
-    Generate all binary lists of given length with certain positions fixed to 0.
+    Generate all permutations of binary lists of length 'state_space_dim'
     
     Parameters
     ----------
@@ -37,30 +38,10 @@ def get_all_subsets(state_space_dim: int) -> list:
         
     Returns
     -------
-    variations : list
-        list of all possible binary lists with the specified features fixed to 0
+    variations : list[list[int]]
+        list of permutations as lists of integers (0 or 1).
     """
-    variations = []
-    
-    # calculate how many bits we need to vary (total length minus fixed positions)
-    variable_positions = [pos for pos in range(state_space_dim)]
-    num_variable_bits = len(variable_positions)
-    
-    # generate all possible combinations for the variable bits
-    for num in range(2 ** num_variable_bits):
-        binary = [0] * state_space_dim
-        
-        # fill in the variable positions
-        for bit_pos in range(num_variable_bits):
-            # get the current variable position in the original list
-            original_pos = variable_positions[bit_pos]
-            # get the bit value (0 or 1)
-            bit_value = (num >> (num_variable_bits - 1 - bit_pos)) & 1
-            binary[original_pos] = bit_value
-            
-        variations.append(binary)
-    
-    return variations
+    return [list(mask) for mask in product([0, 1], repeat=state_space_dim)]
 
 def get_all_group_subsets(G: list) -> np.ndarray:
     """

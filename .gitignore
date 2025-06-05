@@ -2,7 +2,7 @@ papers/
 *.pdf
 *.png
 */logs/
-src/data/
+*/data/*trajectory.csv
 src/models/
 src/imputation_models/
 *__pycache__/
