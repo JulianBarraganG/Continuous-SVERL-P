@@ -81,7 +81,8 @@ vaeac.cpu()
 
 ### Create a time based identity for storing data
 dt = datetime.now()
-id = dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
+id = "_exp_" + str(exp_num)  # Append experiment number to id
+id += dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
 
 print("Calculating Shapley values based on Ground Truth models...")
 report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name="cartpole" + id)
@@ -147,9 +148,11 @@ for i in range(state_space_dimension):
 report_sverl_p(vaeac_shapley_values, CP_STATE_FEATURE_NAMES, row_name="VAEAC", data_file_name="cartpole" + id)
 
 # Plot experiment results
-plot_suffix = ("LD_" + str(cp_latent_dim) + "_W_" 
+plot_suffix = (str(exp_num) +
+               "LD_" + str(cp_latent_dim) + "_W_" 
                + str(cp_vaeac_nn_size_dict["width"]) +
                "_D_" + str(cp_vaeac_nn_size_dict["depth"]))
 
-plot_data_from_id("cartpole" + id, "cartpole_results" + plot_suffix)
+# Save the experiment results in a plot (yay)
+plot_data_from_id("cartpole" + id, "CP_" + plot_suffix)
 
