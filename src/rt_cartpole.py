@@ -4,11 +4,11 @@ from os.path import join, exists
 
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.sverl_utils import report_sverl_p
-from sverl.shapley_utils import get_gt_characteristic_dict, shapley_value
+from sverl.shapley_utils import get_rt_characteristic_dict, shapley_value
 
-def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
+def get_rt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
     """
-    Get GT Cartpole estimations.
+    Get RT Cartpole estimations.
 
     Parameters
     ----------
@@ -21,15 +21,15 @@ def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
     """
     # Instantiating variables
     env = make("CartPole-v1")
-    savepath = join("characteristic_dicts", "gt_cartpole_characteristic_dict.pkl")
+    savepath = join("characteristic_dicts", "rt_cartpole_characteristic_dict.pkl")
     model_filepath = join("models", "cartpole_policy.pkl")
     state_space_dim = env.observation_space.shape[0] # State space dimension #type: ignore
     shapley_values = np.zeros(state_space_dim)  # Initialize Shapley values for each feature
 
     # Get the ground truth characteristic dictionary
     if not exists(model_filepath):
-        print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for GT Cartpole...")
-    characteristic_dict = get_gt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent,
+        print(f"Evaluating {num_models} models with {num_eval_eps} evaluation episodes each, for RT Cartpole...")
+    characteristic_dict = get_rt_characteristic_dict(savepath, env, PolicyCartpole, train_cartpole_agent,
                                                      num_eval_eps, num_models, model_filepath=model_filepath)
 
     # Calculate the Shapley values for each feature
@@ -43,6 +43,6 @@ def get_gt_cartpole(num_eval_eps: int = 100, num_models: int = 16):
     return shapley_values
 
 if __name__ == "__main__":
-    print("Running 'gt_cartpole.py' directly. Purely for testing.")
-    report_sverl_p(get_gt_cartpole(num_eval_eps=1, num_models=1), ["a","b","c","d"])
+    print("Running 'rt_cartpole.py' directly. Purely for testing.")
+    report_sverl_p(get_rt_cartpole(num_eval_eps=1, num_models=1), ["a","b","c","d"])
 

@@ -2,7 +2,7 @@ from os.path import join
 
 # EXPIRMENTAL PARAMETERS
 EVAL_ROUNDS = 10**3  # Number of evaluation rounds for each imputation method
-NUM_GT_MODELS = 16  # Number of competing GT models per coalition
+NUM_RT_MODELS = 16  # Number of competing RT models per coalition
 TRAJECTORY_SIZE = 2*10**5  # Number of sampled trajectories for pi^\star (best policy)
 
 # TRAINING PARAMETERS
@@ -20,7 +20,7 @@ CP_ONE_HOT_MAX_SIZES = [0, 0, 0, 0]
 CP_VAEAC_NN_SIZE_DICT = {
     "width": [32, 32, 64, 64, 128],  # Width of the hidden layers
     "depth": [4, 6, 8, 10, 12],  # Depth of the network (number of hidden layers)
-    "latent_dim": 2*CP_LATENT_DIM,  # VAEAC latend dim is 2x CP_LATENT_DIM
+    "latent_dim": 2*CP_LATENT_DIM,  # VAEAC latent dim is 2x CP_LATENT_DIM
 }
 
 # LUNAR LANDER ENVIRONMENT PARAMETERS

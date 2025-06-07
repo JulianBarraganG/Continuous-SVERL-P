@@ -2,7 +2,7 @@ import gymnasium as gym  # Defines RL environments
 from os.path import exists
 import numpy as np
 from datetime import datetime
-from gt_cartpole import get_gt_cartpole
+from rt_cartpole import get_rt_cartpole
 from vaeac.train_utils import TrainingArgs
 
 from sverl.UnifSampler import UnifSampler
@@ -20,7 +20,7 @@ from sverl.globalvars import *
 env = gym.make('CartPole-v1')
 
 action_space_dimension = env.action_space.n - 1 # This is the dimension, not the size 
-state_space_dimension = env.observation_space.shape[0]
+state_space_dimension = env.observation_space.shape[0] #type: ignore
 
 # CartPole one hot max sizes are all 0-s,
 # since each feature is continous (i.e. real)
@@ -30,11 +30,11 @@ policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 ############################################# EXPERIMENT PREP #############################################
 ##### Experiment number
-exp_num = 4
+exp_num = 4 # 4 is preferred for Cart Pole
 print(f"Running experiment number {exp_num}...")
 
-### Get GT models and Shapley values
-gt_shap = get_gt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_GT_MODELS)
+### Get RT models and Shapley values
+rt_shap = get_rt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_RT_MODELS)
 
 # Get the respective NN size dict and latend dimension
 cp_latent_dim = CP_LATENT_DIM[exp_num - 1]  # Latent dimension for VAEAC
@@ -81,11 +81,11 @@ vaeac.cpu()
 
 ### Create a time based identity for storing data
 dt = datetime.now()
-id = "_exp_" + str(exp_num)  # Append experiment number to id
-id += "_" + dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
+time_id = "_" + dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 10 str of digits
+id = f"_exp_{str(exp_num)}" + time_id  # Concatenates exp num and time id
 
 print("Calculating Shapley values based on Ground Truth models...")
-report_sverl_p(gt_shap, CP_STATE_FEATURE_NAMES, row_name="GT_CP", data_file_name="cartpole" + id)
+report_sverl_p(rt_shap, CP_STATE_FEATURE_NAMES, row_name="RT_CP", data_file_name="cartpole" + id)
 
 ### Instantiate shapley value arrays and variables
 nc_shapley_values = np.zeros(state_space_dimension) 
@@ -148,11 +148,11 @@ for i in range(state_space_dimension):
 report_sverl_p(vaeac_shapley_values, CP_STATE_FEATURE_NAMES, row_name="VAEAC", data_file_name="cartpole" + id)
 
 # Plot experiment results
-plot_suffix = (str(exp_num) +
-               "LD_" + str(cp_latent_dim) + "_W_" 
+plot_suffix = (str(exp_num) + "_"
+               + "LD_" + str(cp_latent_dim) + "_W_" 
                + str(cp_vaeac_nn_size_dict["width"]) +
-               "_D_" + str(cp_vaeac_nn_size_dict["depth"]))
+               "_D_" + str(cp_vaeac_nn_size_dict["depth"])
+               + time_id) # Concatenantes exp num, ld, width, depth and dataID
 
-# Save the experiment results in a plot (yay)
-plot_data_from_id("cartpole" + id, "CP_" + plot_suffix)
-
+# Save the experiment results in a plot
+plot_data_from_id("cartpole" + id, "R5CP_" + plot_suffix)

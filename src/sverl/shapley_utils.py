@@ -68,7 +68,7 @@ def shapley_value(i: int, characteristic_dict: dict) -> float:
         sum += marginal_gain(C, i, characteristic_dict)*  normalization
     return sum
 
-def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
+def get_rt_characteristic_dict(savepath: str, env: Env, policy_class: callable, 
                                training_function: callable, no_evaluation_episodes: int, 
                                num_models: int,
                                G: list | None = None,
@@ -108,7 +108,7 @@ def get_gt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     action_space_dim = env.action_space.n - 1
     state_space_dim = env.observation_space.shape[0]
     all_coalitions = get_all_group_subsets(G) if G else get_all_subsets(state_space_dim)
-    models_by_coalitions = np.array(num_models * all_coalitions) # num_models * all_coalitions
+    models_by_coalitions = np.array(num_models * all_coalitions) 
 
     def process_task(mask):
         """Process a single (coalition, model) training/evaluation task"""
