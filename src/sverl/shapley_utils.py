@@ -6,7 +6,7 @@ from collections import defaultdict
 from joblib import Parallel, delayed
 from os.path import exists
 from os import makedirs
-import pickle
+import pickle as pkl
 import tqdm as tqdm
 from operator import itemgetter
 
@@ -84,23 +84,24 @@ def get_rt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
     savepath : str
     env : Env 
     policy_class : callable
-        Policy class to be trained. I think this should actually be a class 
+        Policy class to be trained. I think this should actually be a class.
     training_function : callable
     no_evaluation_episodes : int
     num_models: int
     G: list | None
         If G is none, each feature is a group i.e. no groups.
     model_filepath : str | None            
-            Path to save the policy trained on the full coalition. If None, the policy will not be saved.
+        Path to save the policy trained on the full coalition. If None, the policy will not be saved.
     
-    returns
+    Returns
     -------
     dict
         Dictionary of characteristic values for all coalitions.
     """
     
     if exists(savepath):
-        return pickle.load(open(savepath, "rb"))
+        with open(savepath, "rb") as f:
+            return pkl.load(f)
 
     if not exists("characteristic_dicts"):
         makedirs("characteristic_dicts")
@@ -158,10 +159,12 @@ def get_rt_characteristic_dict(savepath: str, env: Env, policy_class: callable,
             if not exists("models"):
                 makedirs("models")
             print(f"Saving best policy to {model_filepath}")
-            pickle.dump(best_policy, open(model_filepath, "wb"))
+            with open(model_filepath, "wb") as f:
+                pkl.dump(best_policy, f)
 
     # Save results and return
-    pickle.dump(characteristic_dict, open(savepath, "wb"))
+    with open(savepath, "wb") as f:
+        pkl.dump(characteristic_dict, f)
     return characteristic_dict
 
 
@@ -190,7 +193,8 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
         Dictionary of characteristic values for all coalitions.
     """
     if exists(savepath):
-        return pickle.load(open(savepath, "rb"))
+        with open(savepath, "rb") as f:
+            return pkl.load(f)
 
     if not exists("characteristic_dicts"):
         makedirs("characteristic_dicts")
@@ -215,6 +219,7 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
 
     characteristic_dict = dict(results)
 
-    pickle.dump(characteristic_dict, open(savepath, "wb"))
+    with open(savepath, "wb") as f:
+        pkl.dump(characteristic_dict, f)
     return characteristic_dict
 

@@ -27,7 +27,6 @@ state_space_dimension = env.observation_space.shape[0] #type: ignore
 policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 
-
 ############################################# EXPERIMENT PREP #############################################
 ##### Experiment number
 exp_num = 4 # 4 is preferred for Cart Pole
@@ -58,6 +57,10 @@ policy, trajectory = get_policy_and_trajectory(policy,
                                               gen_and_save_trajectory=feature_imputation_model_missing, 
                                               no_evaluation_episodes= EVAL_ROUNDS, 
                                               no_states_in_trajectories=TRAJECTORY_SIZE)
+
+# Ignore actions in trajectory
+if trajectory is not None:
+    trajectory = trajectory[:, :-1]  # Remove the last column (actions) from the trajectory
 
 if feature_imputation_model_missing:
     dataset = StateFeatureDataset(trajectory, batch_size=BATCH_SIZE, shuffle=True)

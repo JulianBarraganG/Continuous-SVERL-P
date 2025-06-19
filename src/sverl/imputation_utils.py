@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from gymnasium import Env
 from os import makedirs
 from os.path import exists, join
-import pickle
+import pickle as pkl
 
 import numpy as np
 import torch
@@ -46,38 +46,40 @@ class StateFeatureDataset(Dataset):
 
 def get_trajectory(policy: callable,
                    env: Env,
-                   time_horizon: int = 10**3) -> np.ndarray: 
+                   time_horizon: int = 10**3) -> np.ndarray:
     """
     Get a trajectory of the agent, given a policy and an environment. 
     
     Parameters
     ----------
-    policy: callable
+    policy : callable
         the policy to use when generating trajectories, should take a state as input and return an action
-    env: gym.Env
+    env : gym.Env
         the environment to generate trajectories from
-    time_horizon: int
-        the time horizon to generate trajectories for, default is 10**3
+    time_horizon : int
+        the time horizon (T) to generate trajectories for, default is 10**3
     
     Returns
     -------
     trajectory_features: numpy.ndarray
-        the trajectory features, shape (t, d), where t is the time horizon and d is the state space dimension
+        the trajectory features, shape (t, d + 1), where t is the time horizon and d is the state space dimension
     """
-    trajectory_features = []  # store the features of the trajectory
+
     state = env.reset()[0]  # forget about previous episode, and sample s_0 ~ p_0 
+    state_space_dim = env.observation_space.shape[0]  # type: ignore
+    trajectory = np.zeros((time_horizon, state_space_dim + 1))  # create a zero vector of the state space dimension
     
-    for _ in trange(time_horizon):     
+    for t in trange(time_horizon):     
 
         a = policy(state)
+        trajectory[t, :-1] = state
+        trajectory[t, -1] = a
         
         state, _ , terminated, truncated, _ = env.step(a)
         if(terminated or truncated): 
             state = env.reset()[0]
-            
-        trajectory_features.append(state)          
-        
-    return np.array(trajectory_features)
+
+    return trajectory
 
 def save_trajectory(trajectories: np.ndarray,
                     filename: str,
@@ -91,7 +93,7 @@ def save_trajectory(trajectories: np.ndarray,
     the trajectories to save,
     usually shape (t, d)
     filename: str
-    note that 'filename' should not include document type i.e. '.csv'
+        note that 'filename' should not include document type i.e. '.csv'
     """
 
     # if the directory does not exist, create it
@@ -110,9 +112,9 @@ def save_trajectory(trajectories: np.ndarray,
     np.savetxt(file_path, trajectories, delimiter=delimiter)
 
 def load_neural_conditioner(filepath: str,
-                            input_dim: int|None = None, 
-                            latent_dim: int|None = None,
-                            dataloader: DataLoader|None = None) -> NC:
+                            input_dim: int | None = None, 
+                            latent_dim: int | None = None,
+                            dataloader: DataLoader | None = None) -> NC:
     """
     Loads the neural conditioner from the given filepath, or creates and saves it,
     if it doesn't exist.
@@ -138,12 +140,14 @@ def load_neural_conditioner(filepath: str,
         discriminator = Discriminator(input_dim)
         print("Training Neural Conditioner...")
         train_nc(nc, discriminator, dataloader, epochs=10)
-        pickle.dump(nc, open(filepath, "wb")) #saving the neural conditioner
+        with open(filepath, "wb") as f:
+            pkl.dump(nc, f) #saving the neural conditioner
         print(f"Neural Conditioner saved at: {filepath}")
         return nc
     else: 
         print("Loading Neural Conditioner...")
-        nc = pickle.load(open(filepath, "rb"))
+        with open(filepath, "rb") as f:
+            nc = pkl.load(f)
         return nc
     
 def load_random_sampler(filepath, trajectory=None):
@@ -163,15 +167,17 @@ def load_random_sampler(filepath, trajectory=None):
     if not exists("imputation_models"):
         makedirs("imputation_models")
 
-    if not exists(filepath):
+    if (not exists(filepath)) and (trajectory is not None):
         print("Training Pi Sampler...")
         rs = PiSampler(trajectory)
-        pickle.dump(rs, open(filepath, "wb")) #saving the random sampler
+        with open(filepath, "wb") as f:
+            pkl.dump(rs, f) #saving the random sampler
         print(f"Pi Sampler saved at: {filepath}")
         return rs
     else: 
         print("Loading Pi Sampler...")
-        rs = pickle.load(open(filepath, "rb"))
+        with open(filepath, "rb") as f:
+            rs = pkl.load(f)
         return rs
     
 def load_vaeac(savepath: str, 
@@ -201,12 +207,14 @@ def load_vaeac(savepath: str,
     if not exists(savepath):
         print("Training VAEAC...")
         vaeac = get_vaeac(args, one_hot_max_sizes, data, nn_size_dict)
-        pickle.dump(vaeac, open(savepath, "wb"))
+        with open(savepath, "wb") as f:
+            pkl.dump(vaeac, f)
         print(f"VAEAC saved at: {savepath}")
         return vaeac
     else:
         print("Loading VAEAC...")
-        vaeac = pickle.load(open(savepath, "rb"))
+        with open(savepath, "rb") as f:
+            vaeac = pkl.load(f)
         return vaeac
 
 def get_policy_and_trajectory(policy: callable,
@@ -256,7 +264,8 @@ def get_policy_and_trajectory(policy: callable,
         print("standard deviation when running ", no_evaluation_episodes, " episodes:: ", np.std(reward)) #printing the standard deviation of the reward
         # save the policy
         print(f"saving policy at: {model_filepath}")
-        pickle.dump(policy, open(model_filepath, "wb")) #saving the policy
+        with open(model_filepath, "wb") as f:
+            pkl.dump(policy, f) # saving policy
         # generate and save trajectory
         if gen_and_save_trajectory:
             print("generating trajectory...")
@@ -267,9 +276,8 @@ def get_policy_and_trajectory(policy: callable,
             return policy, trajectory
     else: # if the model already exists, we load it and the trajectory
         print("loading agent...")
-        policy = pickle.load(open(model_filepath, "rb")) #loading the policy
-
-
+        with open(model_filepath, "rb") as f:
+            policy = pkl.load(f) #loading the policy
 
         print("loading trajectory...")
         if gen_and_save_trajectory:
