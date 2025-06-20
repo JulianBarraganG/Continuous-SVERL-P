@@ -4,12 +4,14 @@ import pickle as pkl
 from os.path import exists, join
 
 from sverl.imputation_utils import get_trajectory, save_trajectory
-from sverl.globalvars import MODEL_FILEPATH, TRAJECTORY_SIZE, TRAJECTORY_FILENAME
+
 
 
 def get_supervised_learning_data(C: list[int],
                                  env: gym.Env,
-                                 T: int = TRAJECTORY_SIZE,
+                                 model_filepath: str,
+                                 trajectory_filename: str,
+                                 T: int,
                                  include_val: bool = False,
                                  train_perc: float = 0.8) -> tuple[np.ndarray,...]:
     """
@@ -22,6 +24,10 @@ def get_supervised_learning_data(C: list[int],
     ----------
     C : list[int]
         A binary masks. Determines coalition of state features.
+    env : gym.Env
+    model_filepath : str
+        The file path to the policy model.
+    trajectory_filename : str
     T : int
         The number of timesteps to generate in the trajectory.
     include_val : bool
@@ -45,17 +51,17 @@ def get_supervised_learning_data(C: list[int],
         C.append(0) 
 
     # Check for model file existence
-    if not exists(MODEL_FILEPATH):
+    if not exists(model_filepath):
         raise ValueError("Get Pi_C function assumes model exists")
 
-    with open(MODEL_FILEPATH, "rb") as f:
+    with open(model_filepath, "rb") as f:
         policy =  pkl.load(f)
 
     # Check if the trajectory file exists, if not, generate it
-    csv_file = join("data", TRAJECTORY_FILENAME + ".csv")
+    csv_file = join("data", trajectory_filename + ".csv")
     if not exists(csv_file):
         trajectory = get_trajectory(policy, env, time_horizon=T)
-        save_trajectory(trajectory, TRAJECTORY_FILENAME)
+        save_trajectory(trajectory, trajectory_filename)
     else:
         trajectory = np.loadtxt(csv_file, delimiter=",")
     
@@ -66,7 +72,7 @@ def get_supervised_learning_data(C: list[int],
     X = trajectory[:, coalition_indices]
     y = trajectory[:, -1].astype(int) # Binary actions
 
-    # Shuffle the data (Assumes 
+    # Shuffle the data 
     permutation = np.random.permutation(T)
     X = X[permutation]
     y = y[permutation]

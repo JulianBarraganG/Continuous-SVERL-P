@@ -11,6 +11,7 @@ from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
 from sverl.sverl_utils import report_sverl_p, global_sverl_value_function, local_sverl_value_function
 from sverl.plotting import plot_data_from_id
+from pi_predictor import pi_pred_cartpole
 from sverl.globalvars import *
 
 
@@ -29,11 +30,14 @@ policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 ############################################# EXPERIMENT PREP #############################################
 ##### Experiment number
-exp_num = 4 # 4 is preferred for Cart Pole
+exp_num = 1 # 4 is preferred for Cart Pole
 print(f"Running experiment number {exp_num}...")
 
 ### Get RT models and Shapley values
-rt_shap = get_rt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_RT_MODELS)
+#
+# rt_shap = get_rt_cartpole(num_eval_eps=EVAL_ROUNDS, num_models=NUM_RT_MODELS)
+
+
 
 # Get the respective NN size dict and latend dimension
 cp_latent_dim = CP_LATENT_DIM[exp_num - 1]  # Latent dimension for VAEAC
@@ -88,13 +92,23 @@ time_id = "_" + dt.strftime("%y%m%d%H%M") # formatted to "YYMMDDHHMM" as a len 1
 id = f"_exp_{str(exp_num)}" + time_id  # Concatenates exp num and time id
 
 print("Calculating Shapley values based on Ground Truth models...")
-report_sverl_p(rt_shap, CP_STATE_FEATURE_NAMES, row_name="RT_CP", data_file_name="cartpole" + id)
+#report_sverl_p(rt_shap, CP_STATE_FEATURE_NAMES, row_name="RT_CP", data_file_name="cartpole" + id)
+
+f_char_dict = pi_pred_cartpole()
 
 ### Instantiate shapley value arrays and variables
+f_shapley_values = np.zeros(state_space_dimension)  # Shapley values for feature imputation
 nc_shapley_values = np.zeros(state_space_dimension) 
 vaeac_shapley_values = np.zeros(state_space_dimension) 
 pi_smp_shapley_values = np.zeros(state_space_dimension) 
 unif_shapley_values = np.zeros(state_space_dimension)
+
+print("Calculating Shapley values based on policy prediction...")
+for i in range(state_space_dimension):
+    f_shapley_values[i] = shapley_value(i, f_char_dict)  # Calculate Shapley value for each feature
+report_sverl_p(f_shapley_values, CP_STATE_FEATURE_NAMES, row_name="F", data_file_name="cartpole" + id)
+
+
 
 
 print("Calculating Shapley values based on PiSampler...")

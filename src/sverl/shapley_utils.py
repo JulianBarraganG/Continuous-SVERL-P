@@ -9,9 +9,13 @@ from os import makedirs
 import pickle as pkl
 import tqdm as tqdm
 from operator import itemgetter
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 
 from .group_utils import get_all_group_subsets, get_all_subsets, get_limited_subsets
 from .imputation_utils import evaluate_policy
+from utils import get_supervised_learning_data
 from .globalvars import RESET_SEED 
 
 
@@ -223,3 +227,97 @@ def get_imputed_characteristic_dict(savepath: str, env: Env, policy: callable,
         pkl.dump(characteristic_dict, f)
     return characteristic_dict
 
+
+def get_f_characteristic_dict(savepath: str, env: Env, model_filepath: str, 
+                                trajectory_filename: str, T: int,
+                                    G: list[int] | None = None) -> dict:
+    """
+    Get the dictionary of characteristic values for all coalitions, using an function to predict what the policy would do.
+
+    Parameters
+    ----------
+    savepath : str
+    env : Env
+    policy : callable
+    policy_predictor : callable
+    char_val_fnc : callable
+        The characteristic value function, or "contribution function".
+        This is the function input of Shapley values $\\phi_i(v)$.
+    G : list[int] | None
+        List of groups, where each group is a list of feature indices. If None, each feature is a group.
+        Grouping is not implemented yet.
+    starting_seed : int | None
+    
+    Returns
+    -------
+    dict
+        Dictionary of characteristic values for all coalitions.
+    """
+
+    if exists(savepath):
+        with open(savepath, "rb") as f:
+            return pkl.load(f)
+    
+    if not exists("characteristic_dicts"):
+        makedirs("characteristic_dicts")
+    if G is not None:
+        raise NotImplementedError("Grouping is not implemented yet.")
+    else: 
+        state_space_dim = env.observation_space.shape[0]  # type: ignore
+        all_coalitions = get_all_subsets(state_space_dim)
+    
+    char_dict = {} 
+
+    for C in all_coalitions: 
+        print("Calculating characteristic value for coalition:", C)
+        X_train, y_train, X_test, y_test = get_supervised_learning_data(C.copy(), env, model_filepath, trajectory_filename, T) #Needs to be C.copy() since the value of C is changed in the function.
+        if sum(C) == 0:
+            #Predict most used action from X_train 
+            def predictor(X):
+                most_common_action = np.bincount(y_train).argmax()
+                return most_common_action
+        else:             
+            scaler = StandardScaler()
+            log = LogisticRegression()
+            svc_poly = SVC(kernel='poly')
+            svc_rbf = SVC(kernel='rbf')
+            classifiers = [log, svc_poly, svc_rbf]
+            test_results = []
+            X_train = scaler.fit_transform(X_train)
+
+            for clf in classifiers:
+                if hasattr(clf, 'kernel'):
+                    print(f"Training classifier {clf.__class__.__name__} for coalition {C} with kernel {clf.kernel}")
+                else:
+                    print(f"Training classifier {clf.__class__.__name__} for coalition {C}")
+                clf.fit(X_train, y_train)
+
+            for clf in classifiers: 
+                X_test_transformed = scaler.transform(X_test)
+                test_results.append(clf.score(X_test_transformed, y_test))
+            #Since np.argmax returns the first occurrence of the maximum value, we return the simplest classifier, which achieves the best score.
+            best_classifier = classifiers[np.argmax(test_results)]
+
+            if hasattr(best_classifier, 'kernel'):
+                    print(f"Best classifier for coalition {C} is {best_classifier.__class__.__name__} with kernel {best_classifier.kernel} with score {max(test_results)}")
+            else:
+                    print(f"Best classifier for coalition {C} is {best_classifier.__class__.__name__} with score {max(test_results)}")
+
+            def predictor(X):
+                if X.ndim == 1:
+                    X = X.reshape(1, -1)
+                X_transformed = scaler.transform(X)
+                return best_classifier.predict(X_transformed)[0]
+            
+        C = np.array(C)
+        char_dict[C.tobytes()] = evaluate_policy(1, env, predictor,
+                                                  mask=C, reset_seed=RESET_SEED)
+    with open(savepath, "wb") as f:
+        pkl.dump(char_dict, f)
+
+    return char_dict
+
+        
+        
+    
+    

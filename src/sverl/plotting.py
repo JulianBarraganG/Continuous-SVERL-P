@@ -57,7 +57,7 @@ def plot_data(df: pl.DataFrame,
         x_min = x_positions[col_idx] - (n_bars_per_column/2) * bar_width
         x_max = x_positions[col_idx] + (n_bars_per_column/2) * bar_width
         plt.hlines(line_value, x_min, x_max, colors="red", linestyles="dashed", 
-                 label="Retraining" if col_idx == 0 else "")
+                 label="Policy prediction" if col_idx == 0 else "")
 
     # Make a check for min val in normalized_df
     normalized_df_min = normalized_df.min().to_numpy().min()
