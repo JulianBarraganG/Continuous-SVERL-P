@@ -267,7 +267,9 @@ def get_f_characteristic_dict(savepath: str, env: Env, model_filepath: str,
         all_coalitions = get_all_subsets(state_space_dim)
     
     char_dict = {} 
+    
 
+    
     for C in all_coalitions: 
         print("Calculating characteristic value for coalition:", C)
         X_train, y_train, X_test, y_test = get_supervised_learning_data(C.copy(), env, model_filepath, trajectory_filename, T) #Needs to be C.copy() since the value of C is changed in the function.
@@ -279,35 +281,14 @@ def get_f_characteristic_dict(savepath: str, env: Env, model_filepath: str,
         else:             
             scaler = StandardScaler()
             log = LogisticRegression()
-            svc_poly = SVC(kernel='poly')
-            svc_rbf = SVC(kernel='rbf')
-            classifiers = [log, svc_poly, svc_rbf]
-            test_results = []
             X_train = scaler.fit_transform(X_train)
-
-            for clf in classifiers:
-                if hasattr(clf, 'kernel'):
-                    print(f"Training classifier {clf.__class__.__name__} for coalition {C} with kernel {clf.kernel}")
-                else:
-                    print(f"Training classifier {clf.__class__.__name__} for coalition {C}")
-                clf.fit(X_train, y_train)
-
-            for clf in classifiers: 
-                X_test_transformed = scaler.transform(X_test)
-                test_results.append(clf.score(X_test_transformed, y_test))
-            #Since np.argmax returns the first occurrence of the maximum value, we return the simplest classifier, which achieves the best score.
-            best_classifier = classifiers[np.argmax(test_results)]
-
-            if hasattr(best_classifier, 'kernel'):
-                    print(f"Best classifier for coalition {C} is {best_classifier.__class__.__name__} with kernel {best_classifier.kernel} with score {max(test_results)}")
-            else:
-                    print(f"Best classifier for coalition {C} is {best_classifier.__class__.__name__} with score {max(test_results)}")
-
+            log.fit(X_train, y_train)
+           
             def predictor(X):
                 if X.ndim == 1:
                     X = X.reshape(1, -1)
                 X_transformed = scaler.transform(X)
-                return best_classifier.predict(X_transformed)[0]
+                return log.predict(X_transformed)[0]
             
         C = np.array(C)
         char_dict[C.tobytes()] = evaluate_policy(1, env, predictor,

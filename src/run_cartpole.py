@@ -30,7 +30,7 @@ policy = PolicyCartpole(state_space_dimension, action_space_dimension)
 
 ############################################# EXPERIMENT PREP #############################################
 ##### Experiment number
-exp_num = 1 # 4 is preferred for Cart Pole
+exp_num = 5 # 4 is preferred for Cart Pole
 print(f"Running experiment number {exp_num}...")
 
 ### Get RT models and Shapley values
