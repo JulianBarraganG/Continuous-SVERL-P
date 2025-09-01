@@ -271,8 +271,7 @@ def get_f_characteristic_dict(savepath: str, env: Env, model_filepath: str,
 
     
     for C in all_coalitions: 
-        print("Calculating characteristic value for coalition:", C)
-        X_train, y_train, X_test, y_test = get_supervised_learning_data(C.copy(), env, model_filepath, trajectory_filename, T) #Needs to be C.copy() since the value of C is changed in the function.
+        X_train, y_train, _, _ = get_supervised_learning_data(C.copy(), env, model_filepath, trajectory_filename, T) #Needs to be C.copy() since the value of C is changed in the function.
         if sum(C) == 0:
             #Predict most used action from X_train 
             def predictor(X):

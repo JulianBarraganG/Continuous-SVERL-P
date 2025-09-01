@@ -172,4 +172,5 @@ plot_suffix = (str(exp_num) + "_"
                + time_id) # Concatenantes exp num, ld, width, depth and dataID
 
 # Save the experiment results in a plot
-plot_data_from_id("cartpole" + id, "R5CP_" + plot_suffix)
+plot_data_from_id("cartpole" + id, "PI_PREDS_" + plot_suffix)
+
