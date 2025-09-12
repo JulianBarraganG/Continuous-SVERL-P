@@ -1,6 +1,6 @@
 # Continuous SVERL-P (Bachelor's thesis)
 
-This repository implements a framework for calculating Shapley values using the SVERL-P method from [Beechey et. al 2023](https://arxiv.org/pdf/2306.05810) in continuous environments using imputation functions [VAEAC](https://arxiv.org/pdf/1806.02382) and [Neural Conditioner](https://arxiv.org/pdf/1902.08401)
+This repository implements a framework for calculating Shapley values using the SVERL-P method from [Beechey et. al 2023](https://arxiv.org/pdf/2306.05810) in continuous environments using function approximaters to impute missing features. Currently implemented: [VAEAC](https://arxiv.org/pdf/1806.02382) and [Neural Conditioner](https://arxiv.org/pdf/1902.08401)
 
 ## Installation
 
