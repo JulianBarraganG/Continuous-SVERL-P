@@ -1,6 +1,20 @@
 # Continuous SVERL-P (Bachelor's thesis)
 
-This repository implements a framework for calculating Shapley values using the SVERL-P method from [Beechey et. al 2023](https://arxiv.org/pdf/2306.05810) in continuous environments using imputation functions [VAEAC](https://arxiv.org/pdf/1806.02382) and [Neural Conditioner](https://arxiv.org/pdf/1902.08401)
+This repository implements a framework for calculating Shapley values using the SVERL-P method from [Beechey et. al 2023](https://arxiv.org/pdf/2306.05810) in continuous environments using function approximaters to impute missing features. Currently implemented: [VAEAC](https://arxiv.org/pdf/1806.02382) and [Neural Conditioner](https://arxiv.org/pdf/1902.08401)
+
+## Installation
+
+1. Clone the repository
+```
+git clone https://github.com/JulianBarraganG/Continuous_SVERL-P.git
+```
+
+2. Manage dependencies using [uv](https://docs.astral.sh/uv/). Install uv following [this link](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer), then run
+```
+uv sync
+```
+
+Note: The repo has a .python-version file specifying which python version, as well as a pyproject.toml (and uv.lock for more details) which allow for reproducing the environment using other dependency managers such as [poetry](https://python-poetry.org/) or [pipenv](https://pipenv.pypa.io/en/latest/).
 
 ## Running experiments 
 
@@ -15,6 +29,3 @@ To rerun the experiment, delete the parts you wish to rerun. I.e. if you wish to
 
 If you want to retrain the imputation functions only, delete /imputation_models and their characteristic function dictionairies in /characteristic_dicts. 
 
-### run_lunarlander.py 
-
-Need to merge two branches first. 
