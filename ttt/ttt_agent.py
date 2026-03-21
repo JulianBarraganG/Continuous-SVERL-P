@@ -1,8 +1,5 @@
 import numpy as np
-from collections import defaultdict
-from ttt_env import TTT, ScoreDict, WonDict, ValidDict
-from tqdm import trange
-import copy
+from ttt_env import ScoreDict, WonDict, ValidDict
     
 
 #This doesn't learn, don't know why.

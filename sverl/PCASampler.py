@@ -12,4 +12,3 @@ class PCASampler:
         z = np.random.normal(size=self.VT.shape[0])
         x_sampled = self.mean + z @ self.VT
         return np.where(mask, observed_features, x_sampled)
-

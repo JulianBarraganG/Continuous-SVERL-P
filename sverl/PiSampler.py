@@ -44,4 +44,3 @@ class PiSampler:
                 pred[i] = observed_features[i]
 
         return pred
-

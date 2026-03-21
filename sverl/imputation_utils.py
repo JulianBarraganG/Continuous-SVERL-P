@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from gymnasium import Env
 from os import makedirs
 from os.path import exists, join
@@ -364,4 +363,3 @@ def evaluate_policy(no_episodes: int,
         print(f"Average reward over {no_episodes} episodes: {np.mean(rewards):2f}")
         print(f"Standard deviation of rewards: {np.std(rewards):.2f}")
     return rewards
-

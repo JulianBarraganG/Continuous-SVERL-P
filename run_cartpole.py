@@ -2,17 +2,34 @@ import gymnasium as gym  # Defines RL environments
 from os.path import exists
 import numpy as np
 from datetime import datetime
-from rt_cartpole import get_rt_cartpole
 from vaeac.train_utils import TrainingArgs
 
 from sverl.UnifSampler import UnifSampler
 from sverl.imputation_utils import load_random_sampler, load_neural_conditioner, load_vaeac, get_policy_and_trajectory, StateFeatureDataset
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.shapley_utils import get_imputed_characteristic_dict, shapley_value
-from sverl.sverl_utils import report_sverl_p, global_sverl_value_function, local_sverl_value_function
+from sverl.sverl_utils import report_sverl_p, global_sverl_value_function
 from sverl.plotting import plot_data_from_id
 from pi_predictor import pi_pred_cartpole
-from sverl.globalvars import *
+from sverl.globalvars import (
+    BATCH_SIZE,
+    CP_LATENT_DIM,
+    CP_ONE_HOT_MAX_SIZES,
+    CP_RANGES,
+    CP_STATE_FEATURE_NAMES,
+    CP_VAEAC_NN_SIZE_DICT,
+    EVAL_ROUNDS,
+    MODEL_FILEPATH,
+    NC_CHARACTERISITIC_DICT_FILEPATH,
+    NC_FILEPATH,
+    PI_SMP_CHARACTERISITIC_DICT_FILEPATH,
+    PI_SMP_FILEPATH,
+    TRAJECTORY_FILENAME,
+    TRAJECTORY_SIZE,
+    UNIF_CHARACTERISITIC_DICT_FILEPATH,
+    VAEAC_CHARACTERISITIC_DICT_FILEPATH,
+    VAEAC_FILEPATH,
+)
 
 
 ########################################## VARIABLE DECLARATIONS ##########################################

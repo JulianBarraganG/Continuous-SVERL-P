@@ -4,16 +4,19 @@ import pickle as pkl
 from os.path import exists, join
 
 from sverl.imputation_utils import get_trajectory, save_trajectory
+from numpy.typing import NDArray
+from typing import Any
 
 
 
-def get_supervised_learning_data(C: list[int],
-                                 env: gym.Env,
-                                 model_filepath: str,
-                                 trajectory_filename: str,
-                                 T: int,
-                                 include_val: bool = False,
-                                 train_perc: float = 0.8) -> tuple[np.ndarray,...]:
+def get_supervised_learning_data(
+    C: list[int],
+    env: gym.Env,
+    model_filepath: str,
+    trajectory_filename: str,
+    T: int,
+    include_val: bool = False,
+ ) -> tuple[NDArray[Any], ...]:
     """
     Get train, test split of supervised learning data from the CartPole environment.
     Validation set can be included if specified.
@@ -32,12 +35,10 @@ def get_supervised_learning_data(C: list[int],
         The number of timesteps to generate in the trajectory.
     include_val : bool
         Whether to include a validation set in the split.
-    train_perc : float
-        The percentage of data to use for training if no validation set is included.
 
     Returns
     -------
-    tuple[np.ndarray, ...]
+    tuple[NDArray[Any], ...]
         The train and test (and validation) splits of the data.
         If include_val is True, returns (X_train, y_train, X_val, y_val, X_test, y_test).
         Otherwise, returns (X_train, y_train, X_test, y_test).
@@ -94,4 +95,3 @@ def get_supervised_learning_data(C: list[int],
     y_train, y_test = y[:train_split], y[train_split:]
 
     return X_train, y_train, X_test, y_test
-

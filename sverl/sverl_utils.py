@@ -122,4 +122,3 @@ def report_sverl_p(shapley_values: np.ndarray,
         with open(file_path, mode='a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
-

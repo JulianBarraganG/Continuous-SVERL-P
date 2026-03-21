@@ -39,4 +39,3 @@ class UnifSampler:
                 pred[i] = observed_features[i]
 
         return pred
-

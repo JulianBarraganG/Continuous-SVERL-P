@@ -9,7 +9,6 @@ from os import makedirs
 import pickle as pkl
 import tqdm as tqdm
 from operator import itemgetter
-from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
@@ -296,8 +295,3 @@ def get_f_characteristic_dict(savepath: str, env: Env, model_filepath: str,
         pkl.dump(char_dict, f)
 
     return char_dict
-
-        
-        
-    
-    

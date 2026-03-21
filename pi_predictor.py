@@ -1,15 +1,7 @@
 import gymnasium as gym
-import numpy as np
-from os.path import exists, join
-import pickle as pkl
+from os.path import join
 
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-
-from sverl.globalvars import CP_STATE_FEATURE_NAMES
 from sverl.shapley_utils import get_f_characteristic_dict
-from sverl.shapley_utils import shapley_value
 from sverl.globalvars import MODEL_FILEPATH, TRAJECTORY_SIZE, TRAJECTORY_FILENAME
 
 def pi_pred_cartpole():

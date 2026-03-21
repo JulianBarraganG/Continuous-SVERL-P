@@ -43,4 +43,3 @@ UNIF_CHARACTERISITIC_DICT_FILEPATH = join("characteristic_dicts", "cartpole_ors_
 NC_CHARACTERISITIC_DICT_FILEPATH = join("characteristic_dicts", "cartpole_nc_characteristic_dict.pkl")
 VAEAC_CHARACTERISITIC_DICT_FILEPATH = join("characteristic_dicts", "cartpole_vaeac_characteristic_dict.pkl")
 RT_CHARACTERISTIC_DICT_FILEPATH = join("characteristic_dicts", "rt_cartpole_characteristic_dict.pkl")
-

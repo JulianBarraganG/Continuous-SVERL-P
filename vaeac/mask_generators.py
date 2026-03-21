@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-from torchvision import transforms
-from PIL import Image
 
 
 # Mask generator for missing feature imputation

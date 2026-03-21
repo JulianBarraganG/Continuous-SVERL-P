@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
 
@@ -202,4 +200,3 @@ def train_nc(nc, discriminator, dataloader, epochs):
             opt_nc.step()
         
         print(f"Epoch {epoch+1}/{epochs} | G Loss: {loss_g.item():.4f} | D Loss: {loss_d.item():.4f}")
-

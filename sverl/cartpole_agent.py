@@ -117,4 +117,3 @@ def train_cartpole_agent(policy_net , env, ftarget=-9999.9, mask=None):
     torch.nn.utils.vector_to_parameters(torch.Tensor(res[0]), policy_net.parameters())      
 
     return policy_net  # Return the policy network
-

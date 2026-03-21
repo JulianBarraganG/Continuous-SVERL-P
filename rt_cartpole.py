@@ -1,6 +1,6 @@
 from gymnasium import make
 import numpy as np
-from os.path import join, exists
+from os.path import exists
 
 from sverl.cartpole_agent import PolicyCartpole, train_cartpole_agent
 from sverl.sverl_utils import report_sverl_p
